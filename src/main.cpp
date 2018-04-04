@@ -7,8 +7,9 @@
  * **==============================================================================
  * */
 #include <iostream>
-#include "popt.h"
+#include <fstream>
 #include "windows.h"
+#include "service_unit.h"
 
 char usage[] = "usage: "\
                "  systemctl start <servicename>\n" \
@@ -17,57 +18,33 @@ char usage[] = "usage: "\
 using namespace std;
 
 
-class SystemDUnitPool {
-public:
-    SystemDUnitPool() { };
-    ~SystemDUnitPool() { };
- 
-private:
-   vector<SystemDUnit *>pool;
-};
+//char BUFFER[MAX_BUFFER_SIZE] = { '\0' };
+string SystemDUnitPool::UNIT_DIRECTORY_PATH = ""; // Quasi constant
+string SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH = ""; // Quasi constant
 
+class SystemDUnitPool *g_pool = new class SystemDUnitPool; // Singleton
 
-class SystemDUnit {
-public:
-    SystemDUnit(char *name) {
-         this->name = name;
-         this->dependencies = NULL;
-         this->is_enabled = false;
-        };
-    ~SystemDUnit() { delete this->name; };
+void do_daemon_reload()
 
-    boolean Start(boolean block) {  };
-    boolean Stop(boolean block) {  };
-    boolean Enable(boolean block) {  };
-    boolean Disable(boolean block) {  };
-    boolean IsEnabled() {  };
-    void SetDependency(SystemDUnit *dependency; )
-    vector<class SystemDUnit> GetDependency( return dependencies; )
- 
-
-    static SystemDUnitPool &UnitPool() { return pool; };
-private:
-    string name;
-    boolean is_enabled;
-    vector<class SystemDUnit *> dependencies;
-    static SystemDUnitPool pool;
-};
-
+{
+  cerr << "do daemon reload" << endl;
+}
 
 int main(int argc, char *argv[])
 
 { 
+    int argidx = 0;
     char *thisarg = NULL;
     std::cout << usage;
 
-    for (int i = 0; thisarg = argv[i]; thisarg != NULL; thisarg = argv[++i] ) {
+    for (argidx = 1, thisarg = argv[argidx]; thisarg != NULL; thisarg = argv[++argidx] ) {
         string argstr = thisarg;
 
         if (argstr.compare("daemon-reload") == 0) {
-            do_daemon_reload()
+            do_daemon_reload();
         }
         else if (argstr.compare("enable") == 0) {
-            thisarg = argv[++i] ;
+            thisarg = argv[++argidx] ;
             if (!thisarg) {
                  // Complain and exit
                  cerr << "No unit specified\n";
@@ -76,21 +53,21 @@ int main(int argc, char *argv[])
             }
             argstr = thisarg; 
 
-            SystemDUnit *unit = SystemDUnit.GetPool().FindUnit(argstr);
+            class SystemDUnit *unit = SystemDUnitPool::FindUnit(argstr);
             if (!unit) {
                 // Then we need to create a unit record.
-                unit = SystemDUnit.GetPool().ReadServiceUnit(argstr);
+                unit = SystemDUnitPool::ReadServiceUnit(argstr);
                 if (!unit) {
                     // Complain and exit
-                    cerr << "Failed to enable unit: Unit file " << argstr << "does not exist\n";
+                    cerr << "Failed to enable unit: Unit file " << argstr.c_str() << "does not exist\n";
                     cerr << usage;
                     exit(1);
                 }
                 unit->Enable(false); // We will add non-blocking later
             }
         }
-        else if (argstr.compare("disable")) {
-            thisarg = argv[++i] ;
+        else if (argstr.compare("disable") == 0) {
+            thisarg = argv[++argidx] ;
             if (!thisarg) {
                  // Complain and exit
                  cerr << "No unit specified\n";
@@ -99,17 +76,17 @@ int main(int argc, char *argv[])
             }
             argstr = thisarg; 
 
-            SystemDUnit *unit = SystemDUnit.GetPool().FindUnit(argstr);
+            SystemDUnit *unit = SystemDUnitPool::FindUnit(argstr);
             if (!unit) {
                     // Complain and exit
-                    cerr << "Failed to disable unit: Unit file " << argstr << "does not exist\n";
+                    cerr << "Failed to disable unit: Unit file " << argstr.c_str() << "does not exist\n";
                     cerr << usage;
                     exit(1);
             }
             unit->Disable(false);
         }
-        else if (argstr.compare("is-enabled")) {
-            thisarg = argv[++i] ;
+        else if (argstr.compare("is-enabled") == 0) {
+            thisarg = argv[++argidx] ;
             if (!thisarg) {
                  // Complain and exit
                  cerr << "No unit specified\n";
@@ -118,10 +95,10 @@ int main(int argc, char *argv[])
             }
             argstr = thisarg; 
 
-            SystemDUnit *unit = SystemDUnit.GetPool().FindUnit(argstr);
+            SystemDUnit *unit = SystemDUnitPool::FindUnit(argstr);
             if (!unit) {
                     // Complain and exit
-                    cerr << "Failed to disable unit: Unit file " << argstr << "does not exist\n";
+                    cerr << "Failed to disable unit: Unit file " << argstr.c_str() << "does not exist\n";
                     cerr << usage;
                     exit(1);
             }
@@ -130,21 +107,23 @@ int main(int argc, char *argv[])
             else {
             }
         }
-        else if (argstr.compare("kill")) {
+        else if (argstr.compare("kill") == 0) {
         }
-        else if (argstr.compare("mask")) {
-        };
-        else if (argstr.compare("stop")) {
+        else if (argstr.compare("mask") == 0) {
         }
-        else if (argstr.compare("restart")) {
+        else if (argstr.compare("start") == 0) {
         }
-        else if (argstr.compare("list-unit-files")) {
+        else if (argstr.compare("stop") == 0) {
         }
-        else if (argstr.compare("show")) {
+        else if (argstr.compare("restart") == 0) {
         }
-        else if (argstr.compare("status")) {
+        else if (argstr.compare("list-unit-files") == 0) {
         }
-        else if (argstr.compare("set-default")) {
+        else if (argstr.compare("show") == 0) {
+        }
+        else if (argstr.compare("status") == 0) {
+        }
+        else if (argstr.compare("set-default") == 0) {
         }
         else {
             if (!thisarg) {
