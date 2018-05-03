@@ -60,6 +60,7 @@ public:
 
 private:
    friend class SystemDUnit;
+   static boolean DirExists(wstring dir_path);
    static boolean Apply(wstring dir_path, boolean (*action)(wstring dir_path, void *context ), void *context);
    static wstring ACTIVE_UNIT_DIRECTORY_PATH; // Quasi constant
    static wstring UNIT_WORKING_DIRECTORY_PATH; // Quasi constant
@@ -138,8 +139,33 @@ public:
        OUTPUT_TYPE_FD      // requires a name
     };
 
-    SystemDUnit(wchar_t *name) {
+    SystemDUnit(const wchar_t *name, const wchar_t *file_path = NULL) {
             this->name = name;
+            if (file_path) {
+                wstring dos_path = file_path ;
+                std::replace_if(dos_path.begin(), dos_path.end(),
+                        [](wchar_t c) -> bool
+                            {
+                                return c == '/';
+                            }, '\\');
+    
+                // The path should be relative. We will strip off the 
+                // base directory paths if known
+                if (wcsncmp(dos_path.c_str(), SystemDUnitPool::UNIT_DIRECTORY_PATH.c_str(), 
+                           SystemDUnitPool::UNIT_DIRECTORY_PATH.length()) == 0) {
+                    this->unit_file_path = dos_path.c_str() + SystemDUnitPool::UNIT_DIRECTORY_PATH.length();
+                }
+                else if (wcsncmp(dos_path.c_str(), SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH.c_str(), 
+                           SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH.length()) == 0) {
+                    this->unit_file_path = dos_path.c_str() + SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH.length();
+                }
+                else {
+                    this->unit_file_path = dos_path;
+                }
+            }
+            else {
+                this->unit_file_path = name;
+            }
             this->is_enabled        = false;
             this->remain_after_exit = false;
             g_pool->GetPool().insert(std::make_pair(name, this));
@@ -154,6 +180,35 @@ public:
 
     boolean IsEnabled() ;
     wstring  &Name()  { return name; };
+    wstring  &FilePath()  { return unit_file_path; };
+    wstring  &FilePath(wstring &file_path)  {
+            if (!file_path.empty()) {
+                wstring dos_path = file_path ;
+                std::replace_if(dos_path.begin(), dos_path.end(),
+                        [](wchar_t c) -> bool
+                            {
+                                return c == '/';
+                            }, '\\');
+    
+                // The path should be relative. We will strip off the 
+                // base directory paths if known
+                if (wcsncmp(dos_path.c_str(), SystemDUnitPool::UNIT_DIRECTORY_PATH.c_str(), 
+                           SystemDUnitPool::UNIT_DIRECTORY_PATH.length()) == 0) {
+                    this->unit_file_path = dos_path.c_str() + SystemDUnitPool::UNIT_DIRECTORY_PATH.length();
+                }
+                else if (wcsncmp(dos_path.c_str(), SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH.c_str(), 
+                           SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH.length()) == 0) {
+                    this->unit_file_path = dos_path.c_str() + SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH.length();
+                }
+                else {
+                    this->unit_file_path = dos_path;
+                }
+            }
+            else {
+                this->unit_file_path = name;
+            }
+            return unit_file_path;
+        };
 
     void AddBefore(wstring servicename) {
                      before.push_back(servicename);
@@ -178,11 +233,24 @@ public:
 
     vector<wstring>&GetRequiredBy() { return required_by; };
 
+    void AddWanted(wstring servicename) { 
+                     wants.push_back(servicename);
+                 };
+
+    vector<wstring>&GetWants() { return wants; };
+
+    void AddWantedBy(wstring servicename) { 
+                     wanted_by.push_back(servicename);
+                 };
+
+    vector<wstring>&GetWantedBy() { return wanted_by; };
+
     // Things that get started (first) when we start
-    // based on required_by and requires
+    // based on wanted_by, wants, required_by and requires
     void AddStartDependency(SystemDUnit *dependency) {
                      start_dependencies.push_back(dependency);
                  };    
+
     vector<class SystemDUnit *> GetStartDependencies()  {
                      return start_dependencies;
                  }; 
@@ -197,7 +265,7 @@ public:
                      return wait_dependencies;
                  };
 
-    static class SystemDUnit *ParseSystemDServiceUnit(wstring servicename, wifstream &fs);
+    static class SystemDUnit *ParseSystemDServiceUnit(wstring servicename, wstring unit_path, wifstream &fs);
  
     boolean StartService(boolean blocking);
     boolean StopService(boolean blocking);
@@ -216,6 +284,7 @@ private:
 
     wstring name;
     wstring description;
+    wstring unit_file_path;
     boolean is_enabled;
     enum OUTPUT_TYPE output_type;
     enum OUTPUT_TYPE error_type;

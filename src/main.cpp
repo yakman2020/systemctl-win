@@ -279,18 +279,28 @@ int SystemCtrl_Cmd_Enable( int argc, wchar_t *argv[] )
          exit(1);
     }
 
-    if (unitname.rfind(L".service") == string::npos) {
+
+    // We allow a shorthand reference via just the service name, but 
+    // we recognise the valid file extensions if given.
+    if (unitname.rfind(L".service") == string::npos &&
+        unitname.rfind(L".target")  == string::npos &&
+        unitname.rfind(L".timer")   == string::npos &&
+        unitname.rfind(L".socket")  == string::npos ) {
           unitname.append(L".service");
     }
 
+    wstring service_unit_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"/"+unitname;
     class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
     if (!unit) {
-        // Complain and exit
-        wcerr << "Failed to enable unit: Unit file " << unitname.c_str() << "does not exist\n";
-        wcerr << usage.c_str();
-        exit(1);
+        unit = SystemDUnitPool::ReadServiceUnit(unitname, service_unit_path);
+        if (!unit) {
+            // Complain and exit
+            wcerr << "Failed to load unit: Unit file " << service_unit_path.c_str() << "is invalid\n";
+            return false;       
+       }
     }
     unit->Enable(false); // We will add non-blocking later
+
     return 0;
 }
 

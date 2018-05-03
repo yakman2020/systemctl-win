@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
+#include <assert.h>
 #include "service_unit.h"
 
 using namespace std;
@@ -53,7 +54,7 @@ SystemDUnitPool::ReadServiceUnit(std::wstring name, std::wstring service_unit_pa
      }
      if (fs.is_open()) {
          // wstring justname = servicename.substr(0, servicename.find_last_of('.'));
-         punit = SystemDUnit::ParseSystemDServiceUnit(servicename, fs);
+         punit = SystemDUnit::ParseSystemDServiceUnit(servicename, service_unit_path, fs);
      }
      else {
          cerr << L"No service unit " << servicename.c_str() << L"Found in unit library" << endl;
@@ -63,11 +64,11 @@ SystemDUnitPool::ReadServiceUnit(std::wstring name, std::wstring service_unit_pa
      return punit;
 }
 
-class SystemDUnit *SystemDUnit::ParseSystemDServiceUnit(wstring servicename, wifstream &fs)
+class SystemDUnit *SystemDUnit::ParseSystemDServiceUnit(wstring servicename, wstring unit_path, wifstream &fs)
 { 
-    wcerr << L"ParseSystemDServiceUnit\n";
+    wcerr << L"ParseSystemDServiceUnit unit = " << servicename << std::endl;
    std::wstring line;
-   class SystemDUnit *punit = new class SystemDUnit((wchar_t*)servicename.c_str());
+   class SystemDUnit *punit = new class SystemDUnit((wchar_t*)servicename.c_str(), unit_path.c_str());
  
    (void)fs.getline(BUFFER, MAX_BUFFER_SIZE);
    line = BUFFER;
@@ -85,7 +86,12 @@ class SystemDUnit *SystemDUnit::ParseSystemDServiceUnit(wstring servicename, wif
                     }), 
                 line.end());
         
-        if (line.compare(L"[Unit]") != wstring::npos) {
+        if (line[0] == ';' || line[0] == '#' ) {
+             // Comment
+            (void)fs.getline(BUFFER, MAX_BUFFER_SIZE);
+            continue;
+        }
+        else if (line.compare(L"[Unit]") != wstring::npos) {
              // Then we need to parse the unit section
              wcerr << "parse unit section\n";
              line = punit->ParseUnitSection(fs);
@@ -136,6 +142,17 @@ static inline wstring split_elems(wifstream &fs, vector<wstring> &attrs, vector<
 
         line = BUFFER;
         int first_non_space = line.find_first_not_of(L" \t\r\n");
+        if (first_non_space <= 0) {
+            // blank line
+            continue;
+        }
+        if (line[first_non_space] == '#' || line[first_non_space] == ';') {
+            // This is a comment line. Treat it as empty
+            continue;
+        }
+
+        // 2do: continuations via '\' at the end of the line.
+
         int split_pt  = line.find_first_of(L"=");
         if (split_pt == std::string::npos) {
             if (first_non_space == std::string::npos) {
@@ -154,6 +171,7 @@ static inline wstring split_elems(wifstream &fs, vector<wstring> &attrs, vector<
         if (last_non_space == std::string::npos) {
             last_non_space = line.length();
         }
+
         attrval  = line.substr(split_pt+1, last_non_space );
         attrs.push_back(wstring(attrname));
         values.push_back(wstring(attrval));
@@ -1206,6 +1224,29 @@ wstring SystemDUnit::ParseInstallSection( wifstream &fs)
 }
 
 
+boolean 
+SystemDUnitPool::DirExists(wstring dir_path)
+
+{
+    HANDLE hFind = INVALID_HANDLE_VALUE;
+    WIN32_FIND_DATAW ffd;
+    LARGE_INTEGER filesize;
+   
+    wstring dos_path = dir_path + L"/*";
+    std::replace_if(dos_path.begin(), dos_path.end(),
+            [](wchar_t c) -> bool
+                {
+                    return c == '/';
+                }, '\\');
+    
+    hFind = FindFirstFileW(dos_path.c_str(), &ffd);
+    if (INVALID_HANDLE_VALUE == hFind) 
+    {
+       return false;
+    } 
+    FindClose(hFind);
+    return true;
+}
 
 boolean 
 SystemDUnitPool::Apply(wstring dir_path, boolean (*action)(wstring dir_path, void *context ), void *context)
@@ -1273,19 +1314,115 @@ SystemDUnitPool::Apply(wstring dir_path, boolean (*action)(wstring dir_path, voi
     return rslt;
 }
 
+// Returns true if the file is read in or ignored. false if read fails
+static boolean read_unit(wstring file_path, void *context)
+
+{
+    wstring servicename = file_path.substr(file_path.find_last_of('/') + 1);
+    wstring file_type = file_path.substr(file_path.find_last_of('.') + 1);
+
+    if ((file_type.compare(L"service") == 0) ||
+        (file_type.compare(L".target") == 0) ||
+        (file_type.compare(L".timer") == 0) ||
+        (file_type.compare(L".socket") == 0)) {
+        SystemDUnit *punit = SystemDUnitPool::ReadServiceUnit(servicename, file_path);
+        if (!punit) {
+            // Complain and exit
+            wcerr << "Failed to load unit: Unit file " << file_path.c_str() << "is invalid\n";
+            return false;
+        }
+        else {
+            punit->Enable(true);
+        }
+    }
+    return true;
+}
+
+
+static boolean
+enable_required_unit(wstring file_path, void *context )
+
+{
+    wcerr << L"enable required Unit " << file_path.c_str() << std::endl;
+    return true;
+}
+
+static boolean
+enable_wanted_unit(wstring file_path, void *context )
+
+{ 
+    boolean unit_loaded = false;
+    wstring servicename = file_path.substr(file_path.find_last_of('/') + 1);
+
+    wcerr << L"enable wanted Unit " << file_path.c_str() << std::endl;
+
+    // normalise the file path
+    wstring dos_path = file_path; // Make a copy
+    std::replace_if(dos_path.begin(), dos_path.end(),
+            [](wchar_t c) -> bool
+                {
+                    return c == '/';
+                }, '\\');
+    
+    unit_loaded = read_unit(dos_path, context);
+    class  SystemDUnit *punit = NULL;
+    if (unit_loaded) {
+       punit = SystemDUnitPool::FindUnit(servicename);
+        if (!punit) {
+            wcerr << L"could not find unit " << servicename << std::endl;
+            return false;
+        }
+    }
+    else {
+        wcerr << L"could not find unit " << servicename << std::endl;
+        return false;
+    }
+
+    assert(punit != NULL);
+    class SystemDUnit *parent_unit = (class SystemDUnit *)context;
+    assert(parent_unit != NULL);
+
+    parent_unit->AddWanted(punit->Name());
+
+    return true;
+}
 
 boolean 
 SystemDUnit::Enable(boolean block)
 
 {
     wchar_t * buffer;
+    wstring servicename = this->name;
+
+
+    // Is there a requires directory?
+    wstring requires_dir_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"/"+servicename+L".requires";
+    if (SystemDUnitPool::DirExists(requires_dir_path)) {
+        wstring active_requires_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".requires";
+
+        (void)CreateDirectoryW(active_requires_dir_path.c_str(), NULL);
+        // Enable all of the units and add to the requires list
+        
+        (void)SystemDUnitPool::Apply(requires_dir_path, enable_required_unit, (void*)this);
+    }
+
+    // Is there a wants directory?
+    wstring wants_dir_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"/"+servicename+L".wants";
+    if (SystemDUnitPool::DirExists(wants_dir_path)) {
+        wstring active_wants_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".wants";
+        (void)CreateDirectoryW(active_wants_dir_path.c_str(), NULL);
+
+        // Enable all of the units and add to the wants list
+        (void)SystemDUnitPool::Apply(wants_dir_path, enable_wanted_unit, (void*)this);
+    }
+
+    // Enable all of the units and add to the requires list
+
 
     if (this->IsEnabled()) {
         // We don't error but we don't do anything
         return true;
     }
-
-    wstring servicename = this->name;
 
     // Even if we aren't running now, we could have a unit in the active directory
     // If so, we just need to register ourseleves with the service manager
@@ -1329,9 +1466,41 @@ SystemDUnit::Enable(boolean block)
     }
 }
 
+static boolean
+disable_required_unit(wstring file_path, void *context )
+
+{
+    wcerr << L"disable required Unit " << file_path.c_str() << std::endl;
+    return true;
+}
+
+static boolean
+disable_wanted_unit(wstring file_path, void *context )
+
+{
+    wcerr << L"disable wanted Unit " << file_path.c_str() << std::endl;
+    return true;
+}
+
 boolean SystemDUnit::Disable(boolean block)
 
 {
+    wstring servicename = this->name;
+
+    // Is there a requires directory?
+    wstring requires_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".requires";
+    if (SystemDUnitPool::DirExists(requires_dir_path)) {
+        // Enable all of the units and add to the requires list
+        (void)SystemDUnitPool::Apply(requires_dir_path, disable_required_unit, (void*)this);
+    }
+
+    // Is there a wants directory?
+    wstring wants_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".wants";
+    if (SystemDUnitPool::DirExists(wants_dir_path)) {
+        // Enable all of the units and add to the wants list
+        (void)SystemDUnitPool::Apply(wants_dir_path, disable_wanted_unit, (void*)this);
+    }
+
     // Disable unregisters the service from the service manager, but leaves the service unit 
     // in place. The next daemon-reload will pick it up again
 
@@ -1343,12 +1512,42 @@ boolean SystemDUnit::Disable(boolean block)
 }
 
 
+static boolean
+mask_required_unit(wstring file_path, void *context )
+
+{
+    wcerr << L"mask required Unit " << file_path.c_str() << std::endl;
+    return true;
+}
+
+static boolean
+mask_wanted_unit(wstring file_path, void *context )
+
+{
+    wcerr << L"mask wanted Unit " << file_path.c_str() << std::endl;
+    return true;
+}
+
 boolean SystemDUnit::Mask(boolean block)
 
 {
     // Mask unregisters the service from the service manager, then deletes the service unit 
     // from the active directory.
     wstring servicename = this->name;
+
+    // Is there a requires directory?
+    wstring requires_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".requires";
+    if (SystemDUnitPool::DirExists(requires_dir_path)) {
+        // Enable all of the units and add to the requires list
+        (void)SystemDUnitPool::Apply(requires_dir_path, mask_required_unit, (void*)this);
+    }
+
+    // Is there a wants directory?
+    wstring wants_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".wants";
+    if (SystemDUnitPool::DirExists(wants_dir_path)) {
+        // Enable all of the units and add to the wants list
+        (void)SystemDUnitPool::Apply(wants_dir_path, mask_wanted_unit, (void*)this);
+    }
 
     this->UnregisterService();
 
@@ -1363,17 +1562,49 @@ boolean SystemDUnit::Mask(boolean block)
 }
 
 
+
+static boolean
+unmask_required_unit(wstring file_path, void *context )
+
+{
+    wcerr << L"unmask required Unit " << file_path.c_str() << std::endl;
+    return true;
+}
+
+static boolean
+unmask_wanted_unit(wstring file_path, void *context )
+
+{
+    wcerr << L"unmask wanted Unit " << file_path.c_str() << std::endl;
+    return true;
+}
+
 boolean SystemDUnit::Unmask(boolean block)
 
 {
     wchar_t * buffer;
 
+    wstring servicename = this->name;
+    // Is there a requires directory?
+    wstring requires_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".requires";
+    if (SystemDUnitPool::DirExists(requires_dir_path)) {
+        // Enable all of the units and add to the requires list
+        (void)SystemDUnitPool::Apply(requires_dir_path, unmask_required_unit, (void*)this);
+    }
+
+    // Is there a wants directory?
+    wstring wants_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".wants";
+    if (SystemDUnitPool::DirExists(wants_dir_path)) {
+        // Enable all of the units and add to the wants list
+        (void)SystemDUnitPool::Apply(wants_dir_path, unmask_wanted_unit, (void*)this);
+    }
+
+    // Is there a wants directory?
     if (this->IsEnabled()) {
         // We don't error but we don't do anything
         return true;
     }
 
-    wstring servicename = this->name;
 
     // Even if we aren't running now, we could have a unit in the active directory
     // If so, we just need to register ourseleves with the service manager
@@ -1412,26 +1643,6 @@ boolean SystemDUnit::Unmask(boolean block)
 }
 
 
-// Returns true if the file is read in or ignored. false if read fails
-static boolean read_unit(wstring file_path, void *context )
-
-{ 
-    wstring servicename = file_path.substr(file_path.find_last_of('/') + 1);
-    wstring file_type = file_path.substr(file_path.find_last_of('.')+1);
-
-    if (file_type.compare(L"service") == 0) {
-        SystemDUnit *punit = SystemDUnitPool::ReadServiceUnit(servicename, file_path);
-        if (!punit) {
-            // Complain and exit
-            wcerr << "Failed to load unit: Unit file " << file_path.c_str() << "is invalid\n";
-            return false;       
-       }
-       else {
-           punit->Enable(true);
-       }
-    }
-    return true;
-}
 
 
 static void setup_before(SystemDUnit *punit, wstring const &before) 
