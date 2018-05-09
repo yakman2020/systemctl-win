@@ -20,7 +20,7 @@
 
 using namespace std;
 
-wstring SystemDUnit::SERVICE_WRAPPER = L"c:\\etc\\SystemD\\bin\\OpenStackService.exe";
+wstring SystemDUnit::SERVICE_WRAPPER = L"systemd-exec.exe";
 
 boolean SystemDUnit::StartService(boolean blocking)
 {
