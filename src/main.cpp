@@ -22,7 +22,6 @@ char usage[] = "usage: "\
 
 using namespace std;
 
-//char BUFFER[MAX_BUFFER_SIZE] = { '\0' };
 wstring SystemDUnitPool::UNIT_DIRECTORY_PATH = L""; // Quasi constant
 wstring SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH = L""; // Quasi constant
 wstring SystemDUnitPool::UNIT_WORKING_DIRECTORY_PATH = L""; // Quasi constant
