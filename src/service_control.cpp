@@ -121,12 +121,25 @@ boolean
 SystemDUnit::RegisterService()
 
 {
+    // We point at an absolute path based on the location of systemctl.exe.
+    // This means that the systemd-exec.exe must be in the same binary
+    // directory as the systemctl. 
+
+    HMODULE hModule = GetModuleHandleW(NULL);
+    wchar_t path[MAX_PATH];
+    
+    GetModuleFileNameW(hModule, path, MAX_PATH);
+    std::wstring wspath = path;
+    int pathend = wspath.find_last_of(L'\\')+1;
+    wspath = wspath.substr(0, pathend);
+
     std::wstring wservice_name         = this->name;
     std::wstring wservice_display_name = this->name;
     std::wstring wdependency_list;
 
     std::wstringstream wcmdline ;
 
+    wcmdline << wspath;
     wcmdline << SERVICE_WRAPPER.c_str();
     wcmdline << L" ";
     wcmdline << L" --service-name ";
