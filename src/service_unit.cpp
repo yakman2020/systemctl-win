@@ -1394,6 +1394,13 @@ SystemDUnit::Enable(boolean block)
     wchar_t * buffer;
     wstring servicename = this->name;
 
+    // Is the active dir there? If not, create it.
+    wstring active_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH;
+    if (!SystemDUnitPool::DirExists(active_dir_path)) {
+         if (!CreateDirectoryW(active_dir_path.c_str(), NULL)) {  // 2do: security attributes
+             wcerr << L"Cold not create active directory" << std::endl;
+         }
+    }
 
     // Is there a requires directory?
     wstring requires_dir_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"/"+servicename+L".requires";
