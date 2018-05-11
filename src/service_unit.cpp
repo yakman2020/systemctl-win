@@ -1332,9 +1332,6 @@ static boolean read_unit(wstring file_path, void *context)
             wcerr << "Failed to load unit: Unit file " << file_path.c_str() << "is invalid\n";
             return false;
         }
-        else {
-            punit->Enable(true);
-        }
     }
     return true;
 }
@@ -1425,7 +1422,47 @@ SystemDUnit::Enable(boolean block)
     }
 
     // Enable all of the units and add to the requires list
+    for(auto other_service : this->GetRequires()) {
 
+wcerr << L"required service = " << other_service << std::endl;
+
+        class SystemDUnit *pother_unit = g_pool->GetPool()[other_service];
+        if (!pother_unit) {
+            wstring file_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"/"+other_service;
+            pother_unit = SystemDUnitPool::ReadServiceUnit(other_service, file_path);
+            if (pother_unit) {
+                if (!pother_unit->Enable(true)) {
+                    wcerr << L"cannot enable dependency " << other_service << std::endl;
+                    return false;
+                }
+            }
+            else {
+                wcerr << L"cannot enable dependency " << other_service << std::endl;
+                return false;
+            }
+        }
+        if (pother_unit) {
+            this->AddStartDependency(pother_unit);
+        }
+    }
+
+    for(auto other_service : this->GetWants()) {
+
+wcerr << L"wanted service = " << other_service << std::endl;
+
+        class SystemDUnit *pother_unit = g_pool->GetPool()[other_service];
+        if (!pother_unit) {
+            wstring file_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"/"+other_service;
+            pother_unit = SystemDUnitPool::ReadServiceUnit(other_service, file_path);
+            if (pother_unit) {
+                (void)pother_unit->Enable(true);
+            }
+            // This is wanted not needed. We don't fail
+        }
+        if (pother_unit) {
+            this->AddStartDependency(pother_unit);
+        }
+    }
 
     if (this->IsEnabled()) {
         // We don't error but we don't do anything
@@ -1755,6 +1792,10 @@ void SystemDUnitPool::ReloadPool()
 
 {
     wcerr << "do daemon reload" << endl;
+
+    // 2do First clear out the pool, services and active dir
+    //
+
     (void)Apply(SystemDUnitPool::UNIT_DIRECTORY_PATH.c_str(), read_unit, (void*)this);
 
      // Now we have the graph, we need to resolve a dependencies graph.
@@ -1768,7 +1809,8 @@ void SystemDUnitPool::LoadPool()
 
 {
     wcerr << "do daemon reload" << endl;
-    (void)Apply(SystemDUnitPool::UNIT_DIRECTORY_PATH.c_str(), read_unit, (void*)this);
+    (void)Apply(SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH.c_str(), read_unit, (void*)this);
+
 for (auto member: g_pool->GetPool()) {
 wcerr << L"key = " << member.first << "value = " << member.second->Name() << std::endl;
 }

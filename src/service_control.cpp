@@ -153,10 +153,18 @@ SystemDUnit::RegisterService()
     for (auto dependent : this->start_dependencies) {
         std::wstring wdep = dependent->name;
         if (wdep.rfind(L".service") != string::npos) {
-            wdep.push_back('\0');
             wdependency_list.append(wdep);
+            wdependency_list.push_back('\0');
         }
     }
+    wdependency_list.push_back('\0');
+
+for (wchar_t *pelem = (wchar_t*)wdependency_list.c_str(); pelem < wdependency_list.c_str()+wdependency_list.size(); ) {
+wcerr << "dependent: " << pelem << std::endl;
+pelem += wcslen(pelem);
+if (!*pelem) break;
+}
+
 
     SC_HANDLE hsc = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (!hsc) {
