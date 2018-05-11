@@ -142,7 +142,7 @@ static inline wstring split_elems(wifstream &fs, vector<wstring> &attrs, vector<
 
         line = BUFFER;
         int first_non_space = line.find_first_not_of(L" \t\r\n");
-        if (first_non_space <= 0) {
+        if (first_non_space < 0) {
             // blank line
             continue;
         }
@@ -250,6 +250,7 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
             int end = 0;
             for (auto start = 0; start != std::string::npos; start = end) {
                 end = value_list.find_first_of(' ', start);
+
                 if (end != string::npos){
                     this->requires.push_back(value_list.substr(start, end));
                 }
@@ -1693,6 +1694,7 @@ void setup_own_dependencies(std::pair<std::wstring, class SystemDUnit *> entry)
     class SystemDUnit *punit = entry.second;
 
     if (punit) {
+wcerr << L"setup own dependencies for = " << punit->Name() << std::endl;
         for(auto other_service: punit->GetAfter()) {
             class SystemDUnit *pother_unit = g_pool->GetPool()[other_service];
             if (pother_unit) {
@@ -1701,6 +1703,19 @@ void setup_own_dependencies(std::pair<std::wstring, class SystemDUnit *> entry)
         }
 
         for(auto other_service : punit->GetRequires()) {
+
+wcerr << L"required service = " << other_service << std::endl;
+
+            class SystemDUnit *pother_unit = g_pool->GetPool()[other_service];
+            if (pother_unit) {
+                punit->AddStartDependency(pother_unit);
+            }
+        }
+
+        for(auto other_service : punit->GetWants()) {
+
+wcerr << L"wanted service = " << other_service << std::endl;
+
             class SystemDUnit *pother_unit = g_pool->GetPool()[other_service];
             if (pother_unit) {
                 punit->AddStartDependency(pother_unit);
