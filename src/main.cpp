@@ -120,7 +120,10 @@ int SystemCtrl_Cmd_Start( int argc, wchar_t *argv[] )
          exit(1);
     }
 
-    if (unitname.rfind(L".service") == string::npos) {
+    if (unitname.rfind(L".service") == string::npos &&
+        unitname.rfind(L".target")  == string::npos &&
+        unitname.rfind(L".timer")   == string::npos &&
+        unitname.rfind(L".socket")  == string::npos ) {
           unitname.append(L".service");
     }
 
@@ -288,7 +291,7 @@ int SystemCtrl_Cmd_Enable( int argc, wchar_t *argv[] )
           unitname.append(L".service");
     }
 
-    wstring service_unit_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"/"+unitname;
+    wstring service_unit_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"\\"+unitname; // We only look for service unit files in the top level directory
     class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
     if (!unit) {
         unit = SystemDUnitPool::ReadServiceUnit(unitname, service_unit_path);

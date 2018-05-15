@@ -37,6 +37,59 @@ SystemDUnitPool::FindUnit(std::wstring name)
     return punit;
 }
 
+boolean 
+SystemDUnitPool::LinkWantedUnit(wstring file_path, wstring servicename)
+
+{ 
+    wstring link_name      = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH + L"\\" + file_path + L"\\" + servicename;
+    wstring orig_file_name = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH + L"\\" + servicename;
+
+    if (!::CreateHardLinkW(link_name.c_str(), orig_file_name.c_str(), NULL)) {
+        DWORD last_err = GetLastError();
+        wcerr << L"could not link file " << link_name << " to " << last_err << std::endl; 
+    }
+
+    return true;
+}
+
+boolean 
+SystemDUnitPool::CopyUnitFileToActive(wstring servicename)
+
+{
+    // Even if we aren't running now, we could have a unit in the active directory
+    // If so, we just need to register ourseleves with the service manager
+    wifstream checkfs(SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+servicename);
+    if (checkfs.is_open()) {
+        checkfs.close();
+    }
+    else {
+              
+        // If there is no file in the active directory, we copy one over, then register.
+
+        wstring service_unit_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"\\"+servicename;
+    
+        // Find the unit in the unit library
+        wifstream fs(service_unit_path, std::fstream::in);
+        if (!fs.is_open()) {
+             wcerr << "No service unit " << servicename.c_str() << "Found in unit library" << endl;
+             return false;
+        }
+        fs.seekg (0, fs.end);
+        int length = fs.tellg();
+        fs.seekg (0, fs.beg);
+        wchar_t *buffer = new wchar_t [length];
+        fs.read (buffer,length);
+        fs.close();
+
+        wofstream ofs(SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+servicename);
+        ofs.write (buffer,length);
+        ofs.close();    
+    }
+
+    return true;
+}
+
+
 
 class SystemDUnit *
 SystemDUnitPool::ReadServiceUnit(std::wstring name, std::wstring service_unit_path) {
@@ -379,15 +432,6 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
         else if (attrs[i].compare(L"JobTimeoutRebootArgument") == 0) {
             wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
-        else if (attrs[i].compare(L"StartLimitIntervalSec") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"StartLimitBurst") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"StartLimitAction") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
         else if (attrs[i].compare(L"FailureAction") == 0) {
             wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
@@ -540,600 +584,22 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
 wstring SystemDUnit::ParseServiceSection( wifstream &fs)
 
 {   
-    static const unsigned long  ATTRIBUTE_BIT_TYPE                       =  0x00000001;
-    static const unsigned long  ATTRIBUTE_BIT_REMAIN_AFTER_EXIT          =  0x00000002;
-    static const unsigned long  ATTRIBUTE_BIT_GUESS_MAIN_PID             =  0x00000004;
-    static const unsigned long  ATTRIBUTE_BIT_PID_FILE                   =  0x00000008;
-    static const unsigned long  ATTRIBUTE_BIT_BUS_NAME                   =  0x00000010;
-    static const unsigned long  ATTRIBUTE_BIT_EXEC_START_PRE             =  0x00000020;
-    static const unsigned long  ATTRIBUTE_BIT_EXEC_START                 =  0x00000040;
-    static const unsigned long  ATTRIBUTE_BIT_EXEC_START_POST            =  0x00000080;
-    static const unsigned long  ATTRIBUTE_BIT_EXEC_RELOAD                =  0x00000100;
-    static const unsigned long  ATTRIBUTE_BIT_EXEC_STOP                  =  0x00000200;
-    static const unsigned long  ATTRIBUTE_BIT_EXEC_STOP_POST             =  0x00000400;
-    static const unsigned long  ATTRIBUTE_BIT_RESTART_SEC                =  0x00000800;
-    static const unsigned long  ATTRIBUTE_BIT_TIMEOUT_START_SEC          =  0x00001000;
-    static const unsigned long  ATTRIBUTE_BIT_TIMEOUT_STOP_SEC           =  0x00002000;
-    static const unsigned long  ATTRIBUTE_BIT_RUNTIME_MAX_SEC            =  0x00008000;
-    static const unsigned long  ATTRIBUTE_BIT_WATCHDOG_SEC               =  0x00010000;
-    static const unsigned long  ATTRIBUTE_BIT_RESTART                    =  0x00020000;
-    static const unsigned long  ATTRIBUTE_BIT_SUCCESS_EXIT_STATUS        =  0x00040000;
-    static const unsigned long  ATTRIBUTE_BIT_RESTART_PREVENT_EXIT_STATUS =  0x00080000;
-    static const unsigned long  ATTRIBUTE_BIT_RESTART_FORCE_EXIT_STATUS  =  0x00100000;
-    static const unsigned long  ATTRIBUTE_BIT_PERMISSIONS_START_ONLY     =  0x00200000;
-    static const unsigned long  ATTRIBUTE_BIT_ROOT_DIRECTORY_START_ONLY  =  0x00400000;
-    static const unsigned long  ATTRIBUTE_BIT_NON_BLOCKING               =  0x00800000;
-    static const unsigned long  ATTRIBUTE_BIT_NOTIFY_ACCESS              =  0x01000000;
-    static const unsigned long  ATTRIBUTE_BIT_SOCKETS                    =  0x02000000;
-    static const unsigned long  ATTRIBUTE_BIT_FILE_DESCRIPTOR_STORE_MAX  =  0x04000000;
-    static const unsigned long  ATTRIBUTE_BIT_USB_FUNCTION_DESCRIPTORS   =  0x08000000;
-    static const unsigned long  ATTRIBUTE_BIT_USB_FUNCTION_STRINGS       =  0x10000000;
-
     unsigned long attr_bitmask = 0;
     vector<wstring> attrs;
     vector<wstring> values;
 
     enum ServiceType attr_type = SERVICE_TYPE_UNDEFINED;
-    boolean attr_remainafterexit = false;
-    boolean attr_guessmainpid    = true;
     wstring  attr_pidfile  = L"";
     wstring  attr_busname  = L"";
     vector<wstring> attr_execstart;
 
     wstring retval = split_elems(fs, attrs, values);
+    systemd_service_attr_func attr_method;
 
     for (auto i = 0; i < attrs.size(); i++) {
-
-        if (attrs[i].compare(L"Type") == 0) {
-            attr_bitmask |= ATTRIBUTE_BIT_TYPE;
-            
-            if (values[i].compare(L"simple") == 0) {
-                attr_type = SERVICE_TYPE_SIMPLE;
-            }
-            else if (values[i].compare(L"forking") == 0) {
-                attr_type = SERVICE_TYPE_FORKING;
-            }
-            else if (values[i].compare(L"oneshot") == 0) {
-                attr_type = SERVICE_TYPE_ONESHOT;
-            }
-            else if (values[i].compare(L"dbus") == 0) {
-                attr_type = SERVICE_TYPE_DBUS;
-            }
-            else if (values[i].compare(L"notify") == 0) {
-                attr_type = SERVICE_TYPE_NOTIFY;
-            }
-            else if (values[i].compare(L"idle") == 0) {
-                attr_type = SERVICE_TYPE_IDLE;
-            }
-            else {
-                attr_type = SERVICE_TYPE_UNDEFINED;
-                wcerr << "service type " << values[i].c_str() << "is unknown" << endl;
-            }
-        }
-        else if (attrs[i].compare(L"RemainAfterExit") == 0) {
-            attr_bitmask |= ATTRIBUTE_BIT_REMAIN_AFTER_EXIT;
-            if (values[i].compare(L"yes") == 0) {
-                attr_remainafterexit = true;
-            }
-            else if (values[i].compare(L"no") == 0) {
-                attr_remainafterexit = false;
-            }
-            else {
-                attr_remainafterexit = false;
-            }
-            this->remain_after_exit = attr_remainafterexit;
-        }
-        else if (attrs[i].compare(L"GuessMainPID") == 0) {
-            attr_bitmask |= ATTRIBUTE_BIT_GUESS_MAIN_PID;
-            if (values[i].compare(L"yes") == 0) {
-                attr_guessmainpid = true;
-            }
-            else if (values[i].compare(L"no") == 0) {
-                attr_guessmainpid = false;
-            }
-            else {
-                attr_guessmainpid = false;
-            }
-            this->guess_main_pid = attr_guessmainpid;
-        }
-        else if (attrs[i].compare(L"PIDFile") == 0) {
-            attr_bitmask |= ATTRIBUTE_BIT_PID_FILE;
-            this->pid_file = values[i];
-        }
-        else if (attrs[i].compare(L"BusName") == 0) {
-            attr_bitmask |= ATTRIBUTE_BIT_BUS_NAME;
-            this->bus_name = values[i];
-        }
-        else if (attrs[i].compare(L"ExecStartPre") == 0) {
-            attr_bitmask |= ATTRIBUTE_BIT_EXEC_START_PRE;
-            this->exec_start_pre.push_back(values[i]);
-        }
-        else if (attrs[i].compare(L"ExecStart") == 0) {
-            attr_bitmask |= ATTRIBUTE_BIT_EXEC_START;
-            this->exec_start.push_back(values[i]);
-        }
-        else if (attrs[i].compare(L"ExecStartPost") == 0) {
-            attr_bitmask |= ATTRIBUTE_BIT_EXEC_START_POST;
-            this->exec_start_post.push_back(values[i]);
-        }
-        else if (attrs[i].compare(L"ExecReload") == 0) {
-            attr_bitmask |= ATTRIBUTE_BIT_EXEC_RELOAD;
-            this->exec_reload.push_back(values[i]);
-        }
-        else if (attrs[i].compare(L"ExecStop") == 0) {
-            attr_bitmask |= ATTRIBUTE_BIT_EXEC_STOP;
-            this->exec_stop.push_back(values[i]);
-        }
-        else if (attrs[i].compare(L"ExecStopPost") == 0) {
-            attr_bitmask |= ATTRIBUTE_BIT_EXEC_STOP_POST;
-            this->exec_stop_post.push_back(values[i]);
-        }
-        else if (attrs[i].compare(L"RestartSec") == 0) {
-            attr_bitmask |= ATTRIBUTE_BIT_RESTART_SEC;
-            if (values[i].compare(L"infinity") == 0 ) {
-                this->restart_sec = DBL_MAX;
-            }
-            else {
-                try {
-                   this->restart_sec = std::stod(values[i]);
-                }
-                catch (const std::exception &e) {
-                    wcerr << "restart_sec invalid value : " << values[i].c_str() << endl;
-                }
-            }
-        }
-        else if (attrs[i].compare(L"TimeoutStartSec") == 0) {
-            attr_bitmask |= ATTRIBUTE_BIT_TIMEOUT_START_SEC;
-            if (values[i].compare(L"infinity") == 0 ) {
-                this->timeout_start_sec = DBL_MAX;
-            }
-            else {
-                try {
-                   this->timeout_start_sec = stod(values[i]);
-                }
-                catch (const std::exception &e) {
-                    wcerr << "timeout_start_sec invalid value : " << values[i].c_str() << endl;
-                }
-            }
-        }
-        else if (attrs[i].compare(L"TimeoutStopSec") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_TIMEOUT_STOP_SEC;
-            if (values[i].compare(L"infinity") == 0 ) {
-                this->timeout_stop_sec = DBL_MAX;
-            }
-            else {
-                try {
-                    this->timeout_stop_sec = stod(values[i]);
-                }
-                catch (const std::exception &e) {
-                    // Try to convert from time span like "5min 20s"
-                    wcerr << "timeout_stop_sec invalid value : " << values[i].c_str() << endl;
-                }
-            }
-        }
-        else if (attrs[i].compare(L"TimeoutSec") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= (ATTRIBUTE_BIT_TIMEOUT_START_SEC | ATTRIBUTE_BIT_TIMEOUT_STOP_SEC);
-            if (values[i].compare(L"infinity") == 0) {
-                this->timeout_start_sec = DBL_MAX;
-                this->timeout_stop_sec = DBL_MAX;
-            }
-            else {
-                try {
-                   auto val = stod(values[i]);
-                   this->timeout_stop_sec = val;
-                   this->timeout_stop_sec = val;
-                }
-                catch (const std::exception &e) {
-                    // Try to convert from time span like "5min 20s"
-                    wcerr << "timeout_sec invalid value : " << values[i].c_str() << endl;
-                }
-            }
-        }
-        else if (attrs[i].compare(L"RuntimeMaxSec") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_RUNTIME_MAX_SEC;
-            if (values[i].compare(L"infinity") == 0) {
-                this->max_runtime_sec = DBL_MAX;
-            }
-            else {
-                try {
-                    this->max_runtime_sec = stod(values[i]);
-                }
-                catch (const std::exception &e) {
-                    // Try to convert from time span like "5min 20s"
-                    wcerr << "RuntimeMaxSec invalid value : " << values[i].c_str() << endl;
-                }
-            }
-        }
-        else if (attrs[i].compare(L"WatchdogSec") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_WATCHDOG_SEC;
-            if (values[i].compare(L"infinity") == 0 ) {
-                this->watchdog_sec = DBL_MAX;
-            }
-            else {
-                try {
-                    this->watchdog_sec = stod(values[i]);
-                }
-                catch (const std::exception &e) {
-                    // Try to convert from time span like "5min 20s"
-                    wcerr << "watchdog_sec invalid value : " << values[i].c_str() << endl;
-                }
-            }
-        }
-        else if (attrs[i].compare(L"Restart") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_RESTART;
-        }
-        else if (attrs[i].compare(L"SuccessExitStatus") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_SUCCESS_EXIT_STATUS;
-        }
-        else if (attrs[i].compare(L"RestartPreventExitStatus") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_RESTART_PREVENT_EXIT_STATUS;
-        }
-        else if (attrs[i].compare(L"RestartForceExitStatus") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_RESTART_FORCE_EXIT_STATUS;
-        }
-        else if (attrs[i].compare(L"PermissionsStartOnly") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_PERMISSIONS_START_ONLY;
-        }
-        else if (attrs[i].compare(L"RootDirectoryStartOnly") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_ROOT_DIRECTORY_START_ONLY;
-        }
-        else if (attrs[i].compare(L"NonBlocking") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_NON_BLOCKING;
-        }
-        else if (attrs[i].compare(L"NotifyAccess") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_NOTIFY_ACCESS;
-        }
-        else if (attrs[i].compare(L"Sockets") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_SOCKETS;
-        }
-        else if (attrs[i].compare(L"FileDescriptorStoreMax") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_FILE_DESCRIPTOR_STORE_MAX;
-        }
-        else if (attrs[i].compare(L"USBFunctionDescriptors") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_USB_FUNCTION_DESCRIPTORS;
-        }
-        else if (attrs[i].compare(L"USBFunctionStrings") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-            attr_bitmask |= ATTRIBUTE_BIT_USB_FUNCTION_STRINGS;
-        }
-        else if (attrs[i].compare(L"WorkingDirectory") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"RootDirectory") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"RootImage") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"MountAPIVFS") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"BindPaths") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"BindReadOnlyPaths") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"User") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"Group") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"DynamicUser") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"SupplementaryGroups") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"PAMName") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"CapabilityBoundingSet") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"AmbientCapabilities") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"NoNewPrivileges") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"SecureBits") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"SELinuxContext") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"AppArmorProfile") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"SmackProcessLabel") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"UMask") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"KeyringMode") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"OOMScoreAdjust") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"TimerSlackNSec") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"Personality") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"IgnoreSIGPIPE") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"Nice") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"CPUSchedulingPolicy") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"CPUSchedulingPriority") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"CPUSchedulingResetOnFork") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"CPUAffinity") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"IOSchedulingClass") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"IOSchedulingPriority") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"ProtectSystem") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"ProtectHome") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"RuntimeDirectory") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"StateDirectory") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"CacheDirectory") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"LogsDirectory") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"ConfigurationDirectory") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"RuntimeDirectoryMode") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"StateDirectoryMode") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"CacheDirectoryMode") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"LogsDirectoryMode") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"ConfigurationDirectoryMode") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"RuntimeDirectoryPreserve") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"ReadWritePaths") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"ReadOnlyPaths") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"InaccessiblePaths") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"TemporaryFileSystem") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"PrivateTmp") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"PrivateDevices") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"PrivateNetwork") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"PrivateUsers") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"ProtectKernelTunables") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"ProtectKernelModules") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"ProtectControlGroups") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"RestrictAddressFamilies") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"RestrictNamespaces") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"LockPersonality") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"MemoryDenyWriteExecute") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"RestrictRealtime") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"RemoveIPC") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"MountFlags") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"SystemCallFilter") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"SystemCallErrorNumber") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"SystemCallArchitectures") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"Environment") == 0) {
-            wcout << "Environment " << values[i].c_str() << endl;
-
-            wstring value_list = values[i];
-            int end = 0;
-            for (auto start = 0; start != std::string::npos; start = end) {
-                end = value_list.find_first_of(' ', start);
-                if (end != string::npos){
-                    this->environment_vars.push_back(value_list.substr(start, end));
-                }
-                else {
-                    this->environment_vars.push_back(value_list);
-                }
-            }
-        }
-        else if (attrs[i].compare(L"EnvironmentFile") == 0) {
-            wcout << "EnvironmentFile= " << values[i].c_str() << endl;
-
-            this->environment_file.push_back(values[i].c_str());
-        }
-        else if (attrs[i].compare(L"PassEnvironment") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"UnsetEnvironment") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"StandardInput") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"StandardOutput") == 0) {
-            wcout << "StandardOutput = " << values[i].c_str() << endl;
-            enum OUTPUT_TYPE out_type = String_To_OutputType(values[i].c_str());
-            switch (out_type) {
-            default:
-            case OUTPUT_TYPE_INVALID:
-                wcerr << "StandardOutput invalid value " << values[i].c_str() << endl;
-                break;
-            case OUTPUT_TYPE_INHERIT:
-            case OUTPUT_TYPE_NULL:
-            case OUTPUT_TYPE_TTY:
-            case OUTPUT_TYPE_JOURNAL:
-            case OUTPUT_TYPE_SYSLOG:
-            case OUTPUT_TYPE_KMSG:
-            case OUTPUT_TYPE_JOURNAL_PLUS_CONSOLE:
-            case OUTPUT_TYPE_SYSLOG_PLUS_CONSOLE:
-            case OUTPUT_TYPE_KMSG_PLUS_CONSOLE:
-            case OUTPUT_TYPE_SOCKET:
-                this->output_type = out_type;
-                break;
-            case OUTPUT_TYPE_FILE:   // requires a path
-            case OUTPUT_TYPE_FD:      // requires a name
-                int    delpos = values[i].find_first_of(L":")+1;
-                wstring    val = values[i].substr(delpos, values[i].length()-delpos);
-                this->output_type = out_type;
-                this->output_file_path = val;
-                break;
-            }
-        }
-        else if (attrs[i].compare(L"StandardError") == 0) {
-            wcout << "StandardError = " << values[i].c_str() << endl;
-            enum OUTPUT_TYPE out_type = String_To_OutputType(values[i].c_str());
-            switch (out_type) {
-            default:
-            case OUTPUT_TYPE_INVALID:
-                wcerr << "StandardError invalid value " << values[i].c_str() << endl;
-                break;
-            case OUTPUT_TYPE_INHERIT:
-            case OUTPUT_TYPE_NULL:
-            case OUTPUT_TYPE_TTY:
-            case OUTPUT_TYPE_JOURNAL:
-            case OUTPUT_TYPE_SYSLOG:
-            case OUTPUT_TYPE_KMSG:
-            case OUTPUT_TYPE_JOURNAL_PLUS_CONSOLE:
-            case OUTPUT_TYPE_SYSLOG_PLUS_CONSOLE:
-            case OUTPUT_TYPE_KMSG_PLUS_CONSOLE:
-            case OUTPUT_TYPE_SOCKET:
-                this->output_type = out_type;
-                break;
-            case OUTPUT_TYPE_FILE:   // requires a path
-            case OUTPUT_TYPE_FD:      // requires a name
-                int    delpos = values[i].find_first_of(L":")+1;
-                wstring    val = values[i].substr(delpos, values[i].length()-delpos);
-                this->error_type = out_type;
-                this->error_file_path = val;
-                break;
-            }
-        }
-        else if (attrs[i].compare(L"StandardInputText") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"StandardInputData") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"LogLevelMax") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"LogExtraFields") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"SyslogIdentifier") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"SyslogFacility") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"SyslogLevel") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"SyslogLevelPrefix") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"TTYPath") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"TTYReset") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"TTYVHangup") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"TTYVTDisallocate") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"UtmpIdentifier") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
-        }
-        else if (attrs[i].compare(L"UtmpMode") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+        attr_method = SystemD_Service_Attribute_Map[attrs[i]];
+        if (attr_method) {
+            (this->*attr_method)(attrs[i], values[i], attr_bitmask);
         }
         else {
             wcerr << "attribute not recognised: " << attrs[i].c_str() << endl;
@@ -1143,8 +609,8 @@ wstring SystemDUnit::ParseServiceSection( wifstream &fs)
     // if type is not set, then we have default value combinatiosn that
     // produce a type value. We behvae after as if they had been specified that way
 
+    attr_type = this->service_type;
     if (! (attr_bitmask & ATTRIBUTE_BIT_TYPE)) {
-        
         if ((attr_bitmask & ATTRIBUTE_BIT_EXEC_START) ) {
             if (! (attr_bitmask & ATTRIBUTE_BIT_BUS_NAME) ) {
                 attr_type = SERVICE_TYPE_SIMPLE;
@@ -1233,7 +699,7 @@ SystemDUnitPool::DirExists(wstring dir_path)
     WIN32_FIND_DATAW ffd;
     LARGE_INTEGER filesize;
    
-    wstring dos_path = dir_path + L"/*";
+    wstring dos_path = dir_path + L"\\*";
     std::replace_if(dos_path.begin(), dos_path.end(),
             [](wchar_t c) -> bool
                 {
@@ -1248,6 +714,73 @@ SystemDUnitPool::DirExists(wstring dir_path)
     FindClose(hFind);
     return true;
 }
+
+
+
+
+wstring 
+SystemDUnitPool::FindServiceFilePath(wstring dir_path, wstring service_name)
+
+{
+    HANDLE hFind = INVALID_HANDLE_VALUE;
+    WIN32_FIND_DATAW ffd;
+    LARGE_INTEGER filesize;
+   
+    wstring dos_path = dir_path + L"\\*";
+    std::replace_if(dos_path.begin(), dos_path.end(),
+            [](wchar_t c) -> bool
+                {
+                    return c == '/';
+                }, '\\');
+    
+    DWORD errval = 0;
+    hFind = FindFirstFileW(dos_path.c_str(), &ffd);
+ 
+    if (INVALID_HANDLE_VALUE == hFind) 
+    {
+        errval = GetLastError();
+        wcerr << L"Could not find directory path " << dir_path.c_str() << L" error = " << errval << endl;
+ 
+       return L"";
+    } 
+    
+    // List all the files in the directory with some info about them.
+ 
+    do
+    {
+       if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+       {
+           wstring subpath = ffd.cFileName;
+
+           if ( (subpath.compare(L".")) != 0 && ( subpath.compare(L"..") != 0)) {
+               wcerr << "subdir found " << subpath.c_str() << endl;
+               subpath = dir_path + L"\\" + subpath;
+               wstring file_path = FindServiceFilePath(subpath, service_name);
+               if (!file_path.empty()) {
+                   return file_path;
+               }
+               wcerr << "return from dir" << subpath.c_str() << endl;
+           }
+       }
+       else
+       {
+          filesize.LowPart = ffd.nFileSizeLow;
+          filesize.HighPart = ffd.nFileSizeHigh;
+          wcerr << L"filename " << ffd.cFileName << L" file size " << filesize.QuadPart << endl;
+          wstring filename = ffd.cFileName;
+          if (filename.compare(service_name) == 0) {
+              dir_path += L"\\";
+              dir_path += filename;
+              return dir_path;
+          }
+       }
+    }
+    while (FindNextFileW(hFind, &ffd) != 0);
+  
+    FindClose(hFind);
+    return L"";
+}
+
 
 boolean 
 SystemDUnitPool::Apply(wstring dir_path, boolean (*action)(wstring dir_path, void *context ), void *context)
@@ -1264,7 +797,7 @@ SystemDUnitPool::Apply(wstring dir_path, boolean (*action)(wstring dir_path, voi
     WIN32_FIND_DATAW ffd;
     LARGE_INTEGER filesize;
    
-    wstring dos_path = dir_path + L"/*";
+    wstring dos_path = dir_path + L"\\*";
     std::replace_if(dos_path.begin(), dos_path.end(),
             [](wchar_t c) -> bool
                 {
@@ -1292,7 +825,7 @@ SystemDUnitPool::Apply(wstring dir_path, boolean (*action)(wstring dir_path, voi
 
            if ( (subpath.compare(L".")) != 0 && ( subpath.compare(L"..") != 0)) {
                wcerr << "subdir found " << subpath.c_str() << endl;
-               subpath = dir_path + L"/" + subpath;
+               subpath = dir_path + L"\\" + subpath;
                rslt = Apply(subpath, action, context);
                wcerr << "return from dir" << subpath.c_str() << endl;
            }
@@ -1304,7 +837,7 @@ SystemDUnitPool::Apply(wstring dir_path, boolean (*action)(wstring dir_path, voi
           filesize.HighPart = ffd.nFileSizeHigh;
           wcerr << L"filename " << ffd.cFileName << L" file size " << filesize.QuadPart << endl;
           if (action) {
-              rslt = (*action)(dir_path+L"/"+ffd.cFileName, context);
+              rslt = (*action)(dir_path+L"\\"+ffd.cFileName, context);
           }
        }
     }
@@ -1319,10 +852,10 @@ SystemDUnitPool::Apply(wstring dir_path, boolean (*action)(wstring dir_path, voi
 static boolean read_unit(wstring file_path, void *context)
 
 {
-    wstring servicename = file_path.substr(file_path.find_last_of('/') + 1);
-    wstring file_type = file_path.substr(file_path.find_last_of('.') + 1);
+    wstring servicename = file_path.substr(file_path.find_last_of('\\') + 1);
+    wstring file_type = file_path.substr(file_path.find_last_of('.'));
 
-    if ((file_type.compare(L"service") == 0) ||
+    if ((file_type.compare(L".service") == 0) ||
         (file_type.compare(L".target") == 0) ||
         (file_type.compare(L".timer") == 0) ||
         (file_type.compare(L".socket") == 0)) {
@@ -1346,23 +879,23 @@ enable_required_unit(wstring file_path, void *context )
 }
 
 static boolean
-enable_wanted_unit(wstring file_path, void *context )
+load_wanted_unit(wstring file_path, void *context )
 
 { 
     boolean unit_loaded = false;
-    wstring servicename = file_path.substr(file_path.find_last_of('/') + 1);
+    wstring servicename = file_path.substr(file_path.find_last_of('\\') + 1);
 
-    wcerr << L"enable wanted Unit " << file_path.c_str() << std::endl;
+    wcerr << L"enable wanted Unit " << servicename.c_str() << std::endl;
 
     // normalise the file path
-    wstring dos_path = file_path; // Make a copy
-    std::replace_if(dos_path.begin(), dos_path.end(),
+    wstring src_path = SystemDUnitPool::UNIT_DIRECTORY_PATH + L"\\" + servicename; // We only look for the unit file on the top directory
+    std::replace_if(src_path.begin(), src_path.end(),
             [](wchar_t c) -> bool
                 {
                     return c == '/';
                 }, '\\');
     
-    unit_loaded = read_unit(dos_path, context);
+    unit_loaded = read_unit(src_path, context);
     class  SystemDUnit *punit = NULL;
     if (unit_loaded) {
        punit = SystemDUnitPool::FindUnit(servicename);
@@ -1380,6 +913,15 @@ enable_wanted_unit(wstring file_path, void *context )
     class SystemDUnit *parent_unit = (class SystemDUnit *)context;
     assert(parent_unit != NULL);
 
+    if (!SystemDUnitPool::CopyUnitFileToActive(servicename)) {
+        wcerr << L"Cold not activated service unit" << std::endl;
+        return false;
+    }
+
+    // Create the link in the active version of the wanted dir to the unit file copy in the active dir
+    // Note we had to ensure the unit file was enabled first
+    SystemDUnitPool::LinkWantedUnit(parent_unit->Name() + L".wants", servicename);
+
     parent_unit->AddWanted(punit->Name());
 
     return true;
@@ -1392,6 +934,7 @@ SystemDUnit::Enable(boolean block)
     wchar_t * buffer;
     wstring servicename = this->name;
 
+
     // Is the active dir there? If not, create it.
     wstring active_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH;
     if (!SystemDUnitPool::DirExists(active_dir_path)) {
@@ -1400,10 +943,15 @@ SystemDUnit::Enable(boolean block)
          }
     }
 
+    if (!SystemDUnitPool::CopyUnitFileToActive(servicename)) {
+        wcerr << L"Cold not activated service unit" << std::endl;
+        return false;
+    }
+
     // Is there a requires directory?
-    wstring requires_dir_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"/"+servicename+L".requires";
+    wstring requires_dir_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+this->unit_file_path+L".requires";
     if (SystemDUnitPool::DirExists(requires_dir_path)) {
-        wstring active_requires_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".requires";
+        wstring active_requires_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+this->unit_file_path+L".requires";
 
         (void)CreateDirectoryW(active_requires_dir_path.c_str(), NULL);
         // Enable all of the units and add to the requires list
@@ -1412,13 +960,13 @@ SystemDUnit::Enable(boolean block)
     }
 
     // Is there a wants directory?
-    wstring wants_dir_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"/"+servicename+L".wants";
+    wstring wants_dir_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+this->unit_file_path+L".wants";
     if (SystemDUnitPool::DirExists(wants_dir_path)) {
-        wstring active_wants_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".wants";
+        wstring active_wants_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+this->unit_file_path+L".wants";
         (void)CreateDirectoryW(active_wants_dir_path.c_str(), NULL);
 
         // Enable all of the units and add to the wants list
-        (void)SystemDUnitPool::Apply(wants_dir_path, enable_wanted_unit, (void*)this);
+        (void)SystemDUnitPool::Apply(wants_dir_path, load_wanted_unit, (void*)this);
     }
 
     // Enable all of the units and add to the requires list
@@ -1428,7 +976,7 @@ wcerr << L"required service = " << other_service << std::endl;
 
         class SystemDUnit *pother_unit = g_pool->GetPool()[other_service];
         if (!pother_unit) {
-            wstring file_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"/"+other_service;
+            wstring file_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"\\"+other_service;
             pother_unit = SystemDUnitPool::ReadServiceUnit(other_service, file_path);
             if (pother_unit) {
                 if (!pother_unit->Enable(true)) {
@@ -1452,14 +1000,16 @@ wcerr << L"wanted service = " << other_service << std::endl;
 
         class SystemDUnit *pother_unit = g_pool->GetPool()[other_service];
         if (!pother_unit) {
-            wstring file_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"/"+other_service;
+            wstring file_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"\\"+other_service;
             pother_unit = SystemDUnitPool::ReadServiceUnit(other_service, file_path);
-            if (pother_unit) {
-                (void)pother_unit->Enable(true);
-            }
+wcerr << L"w1" << std::endl;
+
             // This is wanted not needed. We don't fail
         }
+wcerr << L"w3" << std::endl;
         if (pother_unit) {
+            (void)pother_unit->Enable(true);
+wcerr << L"w4" << std::endl;
             this->AddStartDependency(pother_unit);
         }
     }
@@ -1469,46 +1019,9 @@ wcerr << L"wanted service = " << other_service << std::endl;
         return true;
     }
 
-    // Even if we aren't running now, we could have a unit in the active directory
-    // If so, we just need to register ourseleves with the service manager
-    wifstream checkfs(SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename);
-    if (checkfs.is_open()) {
-        checkfs.close();
-        this->RegisterService();
-        this->is_enabled = true;
-        return true;
-    }
-    else {
-              
-        // If there is no file in the active directory, we copy one over, then register.
-
-        wstring service_unit_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"/"+servicename;
-    
-        // Find the unit in the unit library
-        wifstream fs(service_unit_path, std::fstream::in);
-        if (!fs.is_open()) {
-             wcerr << "No service unit " << servicename.c_str() << "Found in unit library" << endl;
-             return false;
-        }
-        fs.seekg (0, fs.end);
-        int length = fs.tellg();
-        fs.seekg (0, fs.beg);
-        buffer = new wchar_t [length];
-        fs.read (buffer,length);
-    
-        fs.close();
-    
-        wofstream ofs(SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename);
-        ofs.write (buffer,length);
-        ofs.close();
-    
-        this->RegisterService();
-    
-        // and mark the object
-        this->is_enabled = true;
-     
-        return true;
-    }
+    this->RegisterService();
+    this->is_enabled = true;
+    return true;
 }
 
 static boolean
@@ -1533,14 +1046,14 @@ boolean SystemDUnit::Disable(boolean block)
     wstring servicename = this->name;
 
     // Is there a requires directory?
-    wstring requires_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".requires";
+    wstring requires_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+servicename+L".requires";
     if (SystemDUnitPool::DirExists(requires_dir_path)) {
         // Enable all of the units and add to the requires list
         (void)SystemDUnitPool::Apply(requires_dir_path, disable_required_unit, (void*)this);
     }
 
     // Is there a wants directory?
-    wstring wants_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".wants";
+    wstring wants_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+servicename+L".wants";
     if (SystemDUnitPool::DirExists(wants_dir_path)) {
         // Enable all of the units and add to the wants list
         (void)SystemDUnitPool::Apply(wants_dir_path, disable_wanted_unit, (void*)this);
@@ -1581,14 +1094,14 @@ boolean SystemDUnit::Mask(boolean block)
     wstring servicename = this->name;
 
     // Is there a requires directory?
-    wstring requires_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".requires";
+    wstring requires_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+servicename+L".requires";
     if (SystemDUnitPool::DirExists(requires_dir_path)) {
         // Enable all of the units and add to the requires list
         (void)SystemDUnitPool::Apply(requires_dir_path, mask_required_unit, (void*)this);
     }
 
     // Is there a wants directory?
-    wstring wants_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".wants";
+    wstring wants_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+servicename+L".wants";
     if (SystemDUnitPool::DirExists(wants_dir_path)) {
         // Enable all of the units and add to the wants list
         (void)SystemDUnitPool::Apply(wants_dir_path, mask_wanted_unit, (void*)this);
@@ -1596,7 +1109,7 @@ boolean SystemDUnit::Mask(boolean block)
 
     this->UnregisterService();
 
-    std::wstring filepath_W = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename;
+    std::wstring filepath_W = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+servicename;
     std::string filepath_A = std::string(filepath_W.begin(), filepath_W.end());
     // Delete the file
     std::remove(filepath_A.c_str());
@@ -1631,14 +1144,14 @@ boolean SystemDUnit::Unmask(boolean block)
 
     wstring servicename = this->name;
     // Is there a requires directory?
-    wstring requires_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".requires";
+    wstring requires_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+servicename+L".requires";
     if (SystemDUnitPool::DirExists(requires_dir_path)) {
         // Enable all of the units and add to the requires list
         (void)SystemDUnitPool::Apply(requires_dir_path, unmask_required_unit, (void*)this);
     }
 
     // Is there a wants directory?
-    wstring wants_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename+L".wants";
+    wstring wants_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+servicename+L".wants";
     if (SystemDUnitPool::DirExists(wants_dir_path)) {
         // Enable all of the units and add to the wants list
         (void)SystemDUnitPool::Apply(wants_dir_path, unmask_wanted_unit, (void*)this);
@@ -1653,7 +1166,7 @@ boolean SystemDUnit::Unmask(boolean block)
 
     // Even if we aren't running now, we could have a unit in the active directory
     // If so, we just need to register ourseleves with the service manager
-    wifstream checkfs(SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename);
+    wifstream checkfs(SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+servicename);
     if (checkfs.is_open()) {
         checkfs.close();
         return true;
@@ -1662,7 +1175,7 @@ boolean SystemDUnit::Unmask(boolean block)
               
         // If there is no file in the active directory, we copy one over, then register.
 
-        wstring service_unit_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"/"+servicename;
+        wstring service_unit_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"\\"+servicename;
     
         // Find the unit in the unit library
         wifstream fs(service_unit_path, std::fstream::in);
@@ -1678,7 +1191,7 @@ boolean SystemDUnit::Unmask(boolean block)
     
         fs.close();
     
-        wofstream ofs(SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"/"+servicename);
+        wofstream ofs(SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+servicename);
         ofs.write (buffer,length);
         ofs.close();
     
@@ -1821,4 +1334,653 @@ wcerr << L"key = " << member.first << "value = " << member.second->Name() << std
      for_each(g_pool->pool.begin(), g_pool->pool.end(), query_register_unit);
 }
 
+
+
+boolean
+SystemDUnit::attr_service_type( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    attr_bitmask |= ATTRIBUTE_BIT_TYPE;
+            
+    if (attr_value.compare(L"simple") == 0 ) {
+        this->service_type = SERVICE_TYPE_SIMPLE;
+    }
+    else if (attr_value.compare(L"forking") == 0 ) {
+        this->service_type = SERVICE_TYPE_FORKING;
+    }
+    else if (attr_value.compare(L"oneshot") == 0 ) {
+        this->service_type = SERVICE_TYPE_ONESHOT;
+    }
+    else if (attr_value.compare(L"dbus") == 0 ) {
+        this->service_type = SERVICE_TYPE_DBUS;
+    }
+    else if (attr_value.compare(L"notify") == 0 ) {
+        this->service_type = SERVICE_TYPE_NOTIFY;
+    }
+    else if (attr_value.compare(L"idle") == 0 ) {
+        this->service_type = SERVICE_TYPE_IDLE;
+    }
+    else {
+        this->service_type = SERVICE_TYPE_UNDEFINED;
+        wcerr << "service type " << attr_value.c_str() << "is unknown" << endl;
+    }
+    return true;
+}
+
+boolean
+SystemDUnit::attr_remain_after_exit( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    attr_bitmask |= ATTRIBUTE_BIT_REMAIN_AFTER_EXIT;
+    if (attr_value.compare(L"yes") == 0 ) {
+        this->remain_after_exit = true;
+    }
+    else if (attr_value.compare(L"no") == 0 ) {
+        this->remain_after_exit = false;
+    }
+    else {
+        this->remain_after_exit = false;
+    }
+
+    return true;
+}
+
+boolean
+SystemDUnit::attr_guess_main_pid( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    attr_bitmask |= ATTRIBUTE_BIT_GUESS_MAIN_PID;
+    if (attr_value.compare(L"yes") == 0 ) {
+        this->guess_main_pid = true;
+    }
+    else if (attr_value.compare(L"no") == 0 ) {
+        this->guess_main_pid = false;
+    }
+    else {
+        this->guess_main_pid = false;
+    }
+
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_pid_file( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    attr_bitmask |= ATTRIBUTE_BIT_PID_FILE;
+    this->pid_file = attr_value;
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_bus_name( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    attr_bitmask |= ATTRIBUTE_BIT_BUS_NAME;
+    this->bus_name = attr_value;
+    return true;
+}
+
+boolean
+SystemDUnit::attr_exec_start_pre( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    attr_bitmask |= ATTRIBUTE_BIT_EXEC_START_PRE;
+    this->exec_start_pre.push_back(attr_value);
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_exec_start( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    attr_bitmask |= ATTRIBUTE_BIT_EXEC_START;
+    this->exec_start.push_back(attr_value);
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_exec_start_post( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    attr_bitmask |= ATTRIBUTE_BIT_EXEC_START_POST;
+    this->exec_start_post.push_back(attr_value);
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_exec_stop( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    attr_bitmask |= ATTRIBUTE_BIT_EXEC_STOP;
+    this->exec_stop.push_back(attr_value);
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_exec_stop_post( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    attr_bitmask |= ATTRIBUTE_BIT_EXEC_STOP_POST;
+    this->exec_stop_post.push_back(attr_value);
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_exec_reload( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    attr_bitmask |= ATTRIBUTE_BIT_EXEC_RELOAD;
+    this->exec_reload.push_back(attr_value);
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_restart_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    attr_bitmask |= ATTRIBUTE_BIT_RESTART_SEC;
+    if (attr_value.compare(L"infinity") == 0 ) {
+        this->restart_sec = DBL_MAX;
+    }
+    else {
+        try {
+           this->restart_sec = std::stod(attr_value);
+        }
+        catch (const std::exception &e) {
+            wcerr << "restart_sec invalid value : " << attr_value.c_str() << endl;
+        }
+    }
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_timeout_start_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    attr_bitmask |= ATTRIBUTE_BIT_TIMEOUT_START_SEC;
+    if (attr_value.compare(L"infinity") == 0 ) {
+        this->timeout_start_sec = DBL_MAX;
+    }
+    else {
+        try {
+           this->timeout_start_sec = stod(attr_value);
+        }
+        catch (const std::exception &e) {
+            wcerr << "timeout_start_sec invalid value : " << attr_value.c_str() << endl;
+        }
+    }
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_timeout_stop_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << "Timeout Stop Sec" << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_TIMEOUT_STOP_SEC;
+    if (attr_value.compare(L"infinity") == 0 ) {
+        this->timeout_stop_sec = DBL_MAX;
+    }
+    else {
+        try {
+            this->timeout_stop_sec = stod(attr_value);
+        }
+        catch (const std::exception &e) {
+            // Try to convert from time span like "5min 20s"
+            wcerr << "timeout_stop_sec invalid value : " << attr_value.c_str() << endl;
+        }
+    }
+    return true;
+}
+
+
+
+boolean
+SystemDUnit::attr_timeout_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= (ATTRIBUTE_BIT_TIMEOUT_START_SEC | ATTRIBUTE_BIT_TIMEOUT_STOP_SEC);
+    if (attr_value.compare(L"infinity") == 0 ) {
+        this->timeout_start_sec = DBL_MAX;
+        this->timeout_stop_sec = DBL_MAX;
+    }
+    else {
+        try {
+           auto val = stod(attr_value);
+           this->timeout_stop_sec = val;
+           this->timeout_stop_sec = val;
+        }
+        catch (const std::exception &e) {
+            // Try to convert from time span like "5min 20s"
+            wcerr << "timeout_sec invalid value : " << attr_value.c_str() << endl;
+        }
+    }
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_runtime_max_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_RUNTIME_MAX_SEC;
+    if (attr_value.compare(L"infinity") == 0) {
+        this->max_runtime_sec = DBL_MAX;
+    }
+    else {
+        try {
+            this->max_runtime_sec = stod(attr_value);
+        }
+        catch (const std::exception &e) {
+            // Try to convert from time span like "5min 20s"
+            wcerr << "RuntimeMaxSec invalid value : " << attr_value.c_str() << endl;
+        }
+    }
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_watchdog_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_WATCHDOG_SEC;
+    if (attr_value.compare(L"infinity") == 0 ) {
+        this->watchdog_sec = DBL_MAX;
+    }
+    else {
+        try {
+            this->watchdog_sec = stod(attr_value);
+        }
+        catch (const std::exception &e) {
+            // Try to convert from time span like "5min 20s"
+            wcerr << "watchdog_sec invalid value : " << attr_value.c_str() << endl;
+        }
+    }
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_restart( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_RESTART;
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_success_exit_status( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_SUCCESS_EXIT_STATUS;
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_restart_prevent_exit_status( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_RESTART_PREVENT_EXIT_STATUS;
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_restart_force_exit_status( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_RESTART_FORCE_EXIT_STATUS;
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_permissions_start_only( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_PERMISSIONS_START_ONLY;
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_root_directory_start_only( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_ROOT_DIRECTORY_START_ONLY;
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_non_blocking( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_NON_BLOCKING;
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_notify_access( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_NOTIFY_ACCESS;
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_sockets( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_SOCKETS;
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_file_descriptor_store_max( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_FILE_DESCRIPTOR_STORE_MAX;
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_usb_function_descriptors( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_USB_FUNCTION_DESCRIPTORS;
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_usb_function_strings( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    attr_bitmask |= ATTRIBUTE_BIT_USB_FUNCTION_STRINGS;
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_environment( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "Environment " << attr_value.c_str() << endl;
+
+    wstring value_list = attr_value;
+    int end = 0;
+    for (auto start = 0; start != std::string::npos; start = end) {
+        end = value_list.find_first_of(' ', start);
+        if (end != string::npos){
+            this->environment_vars.push_back(value_list.substr(start, end));
+        }
+        else {
+            this->environment_vars.push_back(value_list);
+        }
+    }
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_environment_file( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "EnvironmentFile= " << attr_value.c_str() << endl;
+    this->environment_file.push_back(attr_value.c_str());
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_standard_output( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "StandardOutput = " << attr_value.c_str() << endl;
+    enum OUTPUT_TYPE out_type = String_To_OutputType(attr_value.c_str());
+    switch (out_type) {
+    default:
+    case OUTPUT_TYPE_INVALID:
+        wcerr << "StandardOutput invalid value " << attr_value.c_str() << endl;
+        break;
+    case OUTPUT_TYPE_INHERIT:
+    case OUTPUT_TYPE_NULL:
+    case OUTPUT_TYPE_TTY:
+    case OUTPUT_TYPE_JOURNAL:
+    case OUTPUT_TYPE_SYSLOG:
+    case OUTPUT_TYPE_KMSG:
+    case OUTPUT_TYPE_JOURNAL_PLUS_CONSOLE:
+    case OUTPUT_TYPE_SYSLOG_PLUS_CONSOLE:
+    case OUTPUT_TYPE_KMSG_PLUS_CONSOLE:
+    case OUTPUT_TYPE_SOCKET:
+        this->output_type = out_type;
+        break;
+    case OUTPUT_TYPE_FILE:   // requires a path
+    case OUTPUT_TYPE_FD:      // requires a name
+        int    delpos = attr_value.find_first_of(L":")+1;
+        wstring    val = attr_value.substr(delpos, attr_value.length()-delpos);
+        this->output_type = out_type;
+        this->output_file_path = val;
+        break;
+    }
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_standard_error( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "StandardError = " << attr_value.c_str() << endl;
+    enum OUTPUT_TYPE out_type = String_To_OutputType(attr_value.c_str());
+    switch (out_type) {
+    default:
+    case OUTPUT_TYPE_INVALID:
+        wcerr << "StandardError invalid value " << attr_value.c_str() << endl;
+        break;
+    case OUTPUT_TYPE_INHERIT:
+    case OUTPUT_TYPE_NULL:
+    case OUTPUT_TYPE_TTY:
+    case OUTPUT_TYPE_JOURNAL:
+    case OUTPUT_TYPE_SYSLOG:
+    case OUTPUT_TYPE_KMSG:
+    case OUTPUT_TYPE_JOURNAL_PLUS_CONSOLE:
+    case OUTPUT_TYPE_SYSLOG_PLUS_CONSOLE:
+    case OUTPUT_TYPE_KMSG_PLUS_CONSOLE:
+    case OUTPUT_TYPE_SOCKET:
+        this->output_type = out_type;
+        break;
+    case OUTPUT_TYPE_FILE:   // requires a path
+    case OUTPUT_TYPE_FD:      // requires a name
+        int    delpos = attr_value.find_first_of(L":")+1;
+        wstring    val = attr_value.substr(delpos, attr_value.length()-delpos);
+        this->error_type = out_type;
+        this->error_file_path = val;
+        break;
+    }
+    return true;
+}
+
+
+boolean
+SystemDUnit::attr_not_implemented( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
+
+{
+    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    return true;
+}
+
+
+std::map< std::wstring , SystemDUnit::systemd_service_attr_func> SystemDUnit::SystemD_Service_Attribute_Map =  {
+        { L"Type",            &SystemDUnit::attr_service_type },
+        { L"RemainAfterExit", &SystemDUnit::attr_remain_after_exit },
+        { L"GuessMainPID",    &SystemDUnit::attr_guess_main_pid },
+        { L"PIDFile",         &SystemDUnit::attr_pid_file },
+        { L"BusName",         &SystemDUnit::attr_bus_name },
+        { L"ExecStartPre",    &SystemDUnit::attr_exec_start_pre },
+        { L"ExecStart",       &SystemDUnit::attr_exec_start },
+        { L"ExecStartPost",   &SystemDUnit::attr_exec_start_post },
+        { L"ExecReload",      &SystemDUnit::attr_exec_reload },
+        { L"ExecStop",        &SystemDUnit::attr_exec_stop },
+        { L"ExecStopPost",    &SystemDUnit::attr_exec_stop },
+        { L"RestartSec",      &SystemDUnit::attr_restart_sec },
+        { L"TimeoutStartSec", &SystemDUnit::attr_timeout_start_sec },
+        { L"TimeoutStopSec",  &SystemDUnit::attr_timeout_stop_sec },
+        { L"TimeoutSec",      &SystemDUnit::attr_timeout_sec },
+        { L"RuntimeMaxSec",   &SystemDUnit::attr_runtime_max_sec },
+        { L"WatchdogSec",     &SystemDUnit::attr_watchdog_sec },
+        { L"Restart",         &SystemDUnit::attr_restart },
+        { L"SuccessExitStatus",  &SystemDUnit::attr_success_exit_status },
+        { L"RestartPreventExitStatus", &SystemDUnit::attr_restart_prevent_exit_status },
+        { L"RestartForceExitStatus",   &SystemDUnit::attr_restart_force_exit_status },
+        { L"PermissionsStartOnly",     &SystemDUnit::attr_permissions_start_only },
+        { L"RootDirectoryStartOnly",     &SystemDUnit::attr_root_directory_start_only },
+        { L"NonBlocking",     &SystemDUnit::attr_non_blocking },
+        { L"NotifyAccess",     &SystemDUnit::attr_notify_access },
+        { L"Sockets",     &SystemDUnit::attr_sockets },
+        { L"FileDescriptorStoreMax",  &SystemDUnit::attr_file_descriptor_store_max },
+        { L"USBFunctionDescriptors",  &SystemDUnit::attr_usb_function_descriptors },
+        { L"USBFunctionStrings",  &SystemDUnit::attr_usb_function_strings },
+        { L"WorkingDirectory", &SystemDUnit::attr_not_implemented },
+        { L"RootDirectory", &SystemDUnit::attr_not_implemented },
+        { L"RootImage", &SystemDUnit::attr_not_implemented },
+        { L"MountAPIVFS", &SystemDUnit::attr_not_implemented },
+        { L"BindPaths", &SystemDUnit::attr_not_implemented },
+        { L"BindReadOnlyPaths", &SystemDUnit::attr_not_implemented },
+        { L"User", &SystemDUnit::attr_not_implemented },
+        { L"Group", &SystemDUnit::attr_not_implemented },
+        { L"DynamicUser", &SystemDUnit::attr_not_implemented },
+        { L"SupplementaryGroups", &SystemDUnit::attr_not_implemented },
+        { L"PAMName", &SystemDUnit::attr_not_implemented },
+        { L"CapabilityBoundingSet", &SystemDUnit::attr_not_implemented },
+        { L"AmbientCapabilities", &SystemDUnit::attr_not_implemented },
+        { L"NoNewPrivileges", &SystemDUnit::attr_not_implemented },
+        { L"SecureBits", &SystemDUnit::attr_not_implemented },
+        { L"SELinuxContext", &SystemDUnit::attr_not_implemented },
+        { L"AppArmorProfile", &SystemDUnit::attr_not_implemented },
+        { L"SmackProcessLabel", &SystemDUnit::attr_not_implemented },
+        { L"UMask", &SystemDUnit::attr_not_implemented },
+        { L"KeyringMode", &SystemDUnit::attr_not_implemented },
+        { L"OOMScoreAdjust", &SystemDUnit::attr_not_implemented },
+        { L"TimerSlackNSec", &SystemDUnit::attr_not_implemented },
+        { L"Personality", &SystemDUnit::attr_not_implemented },
+        { L"IgnoreSIGPIPE", &SystemDUnit::attr_not_implemented },
+        { L"Nice", &SystemDUnit::attr_not_implemented },
+        { L"CPUSchedulingPolicy", &SystemDUnit::attr_not_implemented },
+        { L"CPUSchedulingPriority", &SystemDUnit::attr_not_implemented },
+        { L"CPUSchedulingResetOnFork", &SystemDUnit::attr_not_implemented },
+        { L"CPUAffinity", &SystemDUnit::attr_not_implemented },
+        { L"IOSchedulingClass", &SystemDUnit::attr_not_implemented },
+        { L"IOSchedulingPriority", &SystemDUnit::attr_not_implemented },
+        { L"ProtectSystem", &SystemDUnit::attr_not_implemented },
+        { L"ProtectHome", &SystemDUnit::attr_not_implemented },
+        { L"RuntimeDirectory", &SystemDUnit::attr_not_implemented },
+        { L"StateDirectory", &SystemDUnit::attr_not_implemented },
+        { L"CacheDirectory", &SystemDUnit::attr_not_implemented },
+        { L"LogsDirectory", &SystemDUnit::attr_not_implemented },
+        { L"ConfigurationDirectory", &SystemDUnit::attr_not_implemented },
+        { L"RuntimeDirectoryMode", &SystemDUnit::attr_not_implemented },
+        { L"StateDirectoryMode", &SystemDUnit::attr_not_implemented },
+        { L"CacheDirectoryMode", &SystemDUnit::attr_not_implemented },
+        { L"LogsDirectoryMode", &SystemDUnit::attr_not_implemented },
+        { L"ConfigurationDirectoryMode", &SystemDUnit::attr_not_implemented },
+        { L"RuntimeDirectoryPreserve", &SystemDUnit::attr_not_implemented },
+        { L"ReadWritePaths", &SystemDUnit::attr_not_implemented },
+        { L"ReadOnlyPaths", &SystemDUnit::attr_not_implemented },
+        { L"InaccessiblePaths", &SystemDUnit::attr_not_implemented },
+        { L"TemporaryFileSystem", &SystemDUnit::attr_not_implemented },
+        { L"PrivateTmp", &SystemDUnit::attr_not_implemented },
+        { L"PrivateDevices", &SystemDUnit::attr_not_implemented },
+        { L"PrivateNetwork", &SystemDUnit::attr_not_implemented },
+        { L"PrivateUsers", &SystemDUnit::attr_not_implemented },
+        { L"ProtectKernelTunables", &SystemDUnit::attr_not_implemented },
+        { L"ProtectKernelModules", &SystemDUnit::attr_not_implemented },
+        { L"ProtectControlGroups", &SystemDUnit::attr_not_implemented },
+        { L"RestrictAddressFamilies", &SystemDUnit::attr_not_implemented },
+        { L"RestrictNamespaces", &SystemDUnit::attr_not_implemented },
+        { L"LockPersonality", &SystemDUnit::attr_not_implemented },
+        { L"MemoryDenyWriteExecute", &SystemDUnit::attr_not_implemented },
+        { L"RestrictRealtime", &SystemDUnit::attr_not_implemented },
+        { L"RemoveIPC", &SystemDUnit::attr_not_implemented },
+        { L"MountFlags", &SystemDUnit::attr_not_implemented },
+        { L"SystemCallFilter", &SystemDUnit::attr_not_implemented },
+        { L"SystemCallErrorNumber", &SystemDUnit::attr_not_implemented },
+        { L"SystemCallArchitectures", &SystemDUnit::attr_not_implemented },
+        { L"Environment", &SystemDUnit::attr_environment },
+        { L"EnvironmentFile", &SystemDUnit::attr_environment_file },
+        { L"PassEnvironment", &SystemDUnit::attr_not_implemented },
+        { L"UnsetEnvironment", &SystemDUnit::attr_not_implemented },
+        { L"StandardInput", &SystemDUnit::attr_not_implemented },
+        { L"StandardOutput", &SystemDUnit::attr_standard_output },
+        { L"StandardError", &SystemDUnit::attr_standard_error },
+        { L"StandardInputText", &SystemDUnit::attr_not_implemented },
+        { L"StandardInputData", &SystemDUnit::attr_not_implemented },
+        { L"LogLevelMax", &SystemDUnit::attr_not_implemented },
+        { L"LogExtraFields", &SystemDUnit::attr_not_implemented },
+        { L"StartLimitIntervalSec", &SystemDUnit::attr_not_implemented },
+        { L"StartLimitInterval", &SystemDUnit::attr_not_implemented },
+        { L"StartLimitBurst", &SystemDUnit::attr_not_implemented },
+        { L"StartLimitAction", &SystemDUnit::attr_not_implemented },
+        { L"KillSignal", &SystemDUnit::attr_not_implemented },
+        { L"SyslogIdentifier", &SystemDUnit::attr_not_implemented },
+        { L"SyslogFacility", &SystemDUnit::attr_not_implemented },
+        { L"SyslogLevel", &SystemDUnit::attr_not_implemented },
+        { L"SyslogLevelPrefix", &SystemDUnit::attr_not_implemented },
+        { L"TTYPath", &SystemDUnit::attr_not_implemented },
+        { L"TTYReset", &SystemDUnit::attr_not_implemented },
+        { L"TTYVHangup", &SystemDUnit::attr_not_implemented },
+        { L"TTYVTDisallocate", &SystemDUnit::attr_not_implemented },
+        { L"UtmpIdentifier", &SystemDUnit::attr_not_implemented },
+        { L"UtmpMode", &SystemDUnit::attr_not_implemented },
+        { L"LimitCPU", &SystemDUnit::attr_not_implemented },
+        { L"LimitFSIZE", &SystemDUnit::attr_not_implemented },
+        { L"LimitDATA", &SystemDUnit::attr_not_implemented },
+        { L"LimitSTACK", &SystemDUnit::attr_not_implemented },
+        { L"LimitCORE", &SystemDUnit::attr_not_implemented },
+        { L"LimitRSS", &SystemDUnit::attr_not_implemented },
+        { L"LimitNOFILE", &SystemDUnit::attr_not_implemented },
+        { L"LimitAS", &SystemDUnit::attr_not_implemented },
+        { L"LimitNPROC", &SystemDUnit::attr_not_implemented },
+        { L"LimitMEMLOCK", &SystemDUnit::attr_not_implemented },
+        { L"LimitLOCKS", &SystemDUnit::attr_not_implemented },
+        { L"LimitSIGPENDING", &SystemDUnit::attr_not_implemented },
+        { L"LimitMSGQUEUE", &SystemDUnit::attr_not_implemented },
+        { L"LimitNICE", &SystemDUnit::attr_not_implemented },
+        { L"LimitRTPRIO", &SystemDUnit::attr_not_implemented },
+        { L"LimitRTTIME", &SystemDUnit::attr_not_implemented },
+};
 
