@@ -33,13 +33,13 @@ boolean SystemDUnit::StartService(boolean blocking)
 
     SC_HANDLE hsvc = OpenServiceW(hsc, this->name.c_str(), SERVICE_ALL_ACCESS);
     if (!hsvc) {
-        wcerr << L"OpenService failed " << GetLastError() << std::endl;
+        wcerr << L"In StartService: OpenService failed " << GetLastError() << std::endl;
         CloseServiceHandle(hsc);
         return false;
     }
 
     if (!StartServiceW(hsvc, 0, NULL)) {
-        wcerr << L"OpenService failed " << GetLastError() << std::endl;
+        wcerr << L"In StartService : StartService failed " << GetLastError() << std::endl;
         CloseServiceHandle(hsvc);
         return false;
     }
@@ -61,7 +61,7 @@ boolean SystemDUnit::StopService(boolean blocking)
 
     SC_HANDLE hsvc = OpenServiceW(hsc, this->name.c_str(), SERVICE_ALL_ACCESS);
     if (!hsvc) {
-        wcerr << L"OpenService failed " << GetLastError() << std::endl;
+        wcerr << L"In Stop service: OpenService failed " << GetLastError() << std::endl;
         CloseServiceHandle(hsc);
         return false;
     }
@@ -104,8 +104,15 @@ boolean SystemDUnit::IsEnabled()
 
     SC_HANDLE hsvc = OpenServiceW(hsc, this->name.c_str(), SERVICE_QUERY_STATUS);
     if (!hsvc)
-    {
-        wcerr << L"OpenService failed " << GetLastError() << std::endl;
+    {   DWORD last_err = GetLastError();
+
+        if (last_err == ERROR_SERVICE_DOES_NOT_EXIST ||
+            last_err == ERROR_SERVICE_DISABLED ) {
+            wcerr << L"service " << this->name << " is not enabled " << std::endl;
+        }
+        else {
+            wcerr << L" In IsEnabled error from OpenService " << last_err << std::endl;
+        }
         CloseServiceHandle(hsc);
         return false;
     }
@@ -213,13 +220,13 @@ boolean SystemDUnit::UnregisterService()
 
     SC_HANDLE hsvc = OpenServiceW(hsc, this->name.c_str(), SERVICE_QUERY_STATUS);
     {
-        wcerr << L"OpenService failed " << GetLastError() << std::endl;
+        wcerr << L"In unregister: OpenService failed " << GetLastError() << std::endl;
         CloseServiceHandle(hsvc);
         return false;
     }
 
     if (!DeleteService(hsvc)) {
-        wcerr << L"OpenService failed " << GetLastError() << std::endl;
+        wcerr << L"In unregister: DeleteService failed " << GetLastError() << std::endl;
         CloseServiceHandle(hsvc);
         return false;
     }

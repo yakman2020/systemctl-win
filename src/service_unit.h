@@ -39,14 +39,20 @@ public:
                
                UNIT_DIRECTORY_PATH = system_drive + L"\\etc\\SystemD\\system";
                ACTIVE_UNIT_DIRECTORY_PATH = system_drive + L"\\etc\\SystemD\\active";
-               UNIT_WORKING_DIRECTORY_PATH = system_drive + L"\\etc\\SystemD/\\un";
+               UNIT_WORKING_DIRECTORY_PATH = system_drive + L"\\etc\\SystemD\\run";
           };
 
     ~SystemDUnitPool() { };
  
     std::map<std::wstring, class SystemDUnit*>&GetPool() { return pool; };
     static class SystemDUnit *FindUnit(std::wstring name);
+    static wstring FindServiceFilePath(wstring dir_path, wstring service_name); 
     static class SystemDUnit *ReadServiceUnit(std::wstring name, std::wstring service_unit_path);
+
+    // Actual unit files only occur in the top directory. Various before, after, wants and requires directories are 
+    // hard links to the actual unit file in ACTIVE_UNIT_DIRECTORY_PATH\\servicename
+    static boolean LinkWantedUnit(wstring wanted_unit_path, wstring servicename);
+    static boolean CopyUnitFileToActive(wstring servicename);
 
     // Disables, recopies, reloads, then start/enables everybody in the systemd/lib directory
     void ReloadPool();
@@ -248,6 +254,7 @@ public:
     // Things that get started (first) when we start
     // based on wanted_by, wants, required_by and requires
     void AddStartDependency(SystemDUnit *dependency) {
+
                      start_dependencies.push_back(dependency);
                  };    
 
@@ -277,6 +284,7 @@ public:
     boolean CheckForRequisites();
     boolean WaitForAfters();
 
+
 private:
     wstring ParseUnitSection( wifstream &fs);
     wstring ParseServiceSection( wifstream &fs);
@@ -297,6 +305,7 @@ private:
     wstring  bus_name;            // d-bus bus name (in windows this is just a service id) . Required for type = dbus
     enum ServiceType service_type;
 
+    enum RestartAction restart_action; // Restart= attribute parsed.
     double restart_sec;             // time to sleep before restarting a service. Default 100ms
     double timeout_start_sec;       // time to wait for startup. -1 is "infinity", Defaults to DefautTimeoutStopSec
     double timeout_stop_sec;
@@ -326,6 +335,74 @@ private:
     vector<class SystemDUnit *> wait_dependencies;  // After
 
     static wstring SERVICE_WRAPPER;
+
+    typedef boolean (SystemDUnit::*systemd_service_attr_func)( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    static std::map< std::wstring , systemd_service_attr_func> SystemD_Service_Attribute_Map;
+
+    static const unsigned long  ATTRIBUTE_BIT_TYPE                       =  0x00000001;
+    static const unsigned long  ATTRIBUTE_BIT_REMAIN_AFTER_EXIT          =  0x00000002;
+    static const unsigned long  ATTRIBUTE_BIT_GUESS_MAIN_PID             =  0x00000004;
+    static const unsigned long  ATTRIBUTE_BIT_PID_FILE                   =  0x00000008;
+    static const unsigned long  ATTRIBUTE_BIT_BUS_NAME                   =  0x00000010;
+    static const unsigned long  ATTRIBUTE_BIT_EXEC_START_PRE             =  0x00000020;
+    static const unsigned long  ATTRIBUTE_BIT_EXEC_START                 =  0x00000040;
+    static const unsigned long  ATTRIBUTE_BIT_EXEC_START_POST            =  0x00000080;
+    static const unsigned long  ATTRIBUTE_BIT_EXEC_RELOAD                =  0x00000100;
+    static const unsigned long  ATTRIBUTE_BIT_EXEC_STOP                  =  0x00000200;
+    static const unsigned long  ATTRIBUTE_BIT_EXEC_STOP_POST             =  0x00000400;
+    static const unsigned long  ATTRIBUTE_BIT_RESTART_SEC                =  0x00000800;
+    static const unsigned long  ATTRIBUTE_BIT_TIMEOUT_START_SEC          =  0x00001000;
+    static const unsigned long  ATTRIBUTE_BIT_TIMEOUT_STOP_SEC           =  0x00002000;
+    static const unsigned long  ATTRIBUTE_BIT_RUNTIME_MAX_SEC            =  0x00008000;
+    static const unsigned long  ATTRIBUTE_BIT_WATCHDOG_SEC               =  0x00010000;
+    static const unsigned long  ATTRIBUTE_BIT_RESTART                    =  0x00020000;
+    static const unsigned long  ATTRIBUTE_BIT_SUCCESS_EXIT_STATUS        =  0x00040000;
+    static const unsigned long  ATTRIBUTE_BIT_RESTART_PREVENT_EXIT_STATUS =  0x00080000;
+    static const unsigned long  ATTRIBUTE_BIT_RESTART_FORCE_EXIT_STATUS  =  0x00100000;
+    static const unsigned long  ATTRIBUTE_BIT_PERMISSIONS_START_ONLY     =  0x00200000;
+    static const unsigned long  ATTRIBUTE_BIT_ROOT_DIRECTORY_START_ONLY  =  0x00400000;
+    static const unsigned long  ATTRIBUTE_BIT_NON_BLOCKING               =  0x00800000;
+    static const unsigned long  ATTRIBUTE_BIT_NOTIFY_ACCESS              =  0x01000000;
+    static const unsigned long  ATTRIBUTE_BIT_SOCKETS                    =  0x02000000;
+    static const unsigned long  ATTRIBUTE_BIT_FILE_DESCRIPTOR_STORE_MAX  =  0x04000000;
+    static const unsigned long  ATTRIBUTE_BIT_USB_FUNCTION_DESCRIPTORS   =  0x08000000;
+    static const unsigned long  ATTRIBUTE_BIT_USB_FUNCTION_STRINGS       =  0x10000000;
+
+    boolean SystemDUnit::attr_service_type( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_remain_after_exit( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_guess_main_pid( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_pid_file( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_bus_name( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_exec_start_pre( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_exec_start( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_exec_start_post( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_exec_stop( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_exec_stop_post( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_exec_reload( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_restart_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_timeout_start_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_timeout_stop_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_timeout_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_runtime_max_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_watchdog_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_restart( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_success_exit_status( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_restart_prevent_exit_status( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_restart_force_exit_status( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_permissions_start_only( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_root_directory_start_only( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_non_blocking( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_notify_access( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_sockets( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_file_descriptor_store_max( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_usb_function_descriptors( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_usb_function_strings( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_environment( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_environment_file( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_standard_output( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_standard_error( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+    boolean SystemDUnit::attr_not_implemented( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
+
 };
 
 
