@@ -9,6 +9,7 @@
 #include <iostream>
 #include <fstream>
 #include "windows.h"
+#include "wincred.h"
 #include "winsvc.h"
 #include <vector>
 #include <string>
@@ -146,7 +147,7 @@ SystemDUnit::RegisterService()
 
     std::wstringstream wcmdline ;
 
-    wcmdline << wspath;
+   // wcmdline << wspath;
     wcmdline << SERVICE_WRAPPER.c_str();
     wcmdline << L" ";
     wcmdline << L" --service-name ";
@@ -172,6 +173,24 @@ pelem += wcslen(pelem);
 if (!*pelem) break;
 }
 
+    PCREDENTIALW pcred = NULL;
+    wstring username;
+    wstring user_password;
+    { //--- RETRIEVE user credentials. We need to have credentials specified for the service user otherwise we are
+      //    LocalSystem which is a bit too restrictive to be able to set stuff up.
+
+        BOOL ok = ::CredReadW (L"dcos/app", CRED_TYPE_GENERIC, 0, &pcred);
+        if (!ok) {
+            wcerr << L"CredRead() failed - errno " << GetLastError() << std::endl;
+        }
+        else {
+			user_password = wstring((wchar_t*)pcred->CredentialBlob, pcred->CredentialBlobSize / sizeof(wchar_t));
+			username = wstring(pcred->UserName); // L"wp128869010\\azureuser"; // 
+            wcerr << L"Read username = " << username << " password= " << user_password << std::endl;
+        }
+        // must free memory allocated by CredRead()!
+        ::CredFree (pcred);
+    }
 
     SC_HANDLE hsc = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (!hsc) {
@@ -192,8 +211,8 @@ if (!*pelem) break;
         NULL,                      // no load ordering group 
         NULL,                      // no tag identifier 
         wdependency_list.c_str(),  // no dependencies 
-        NULL,                      // LocalSystem account 
-        NULL);                     // no password 
+        username.c_str(), //pcred? username.c_str(): NULL,  // LocalSystem account 
+		user_password.c_str()); // pcred ? user_password.c_str() : NULL);   // no password 
  
     if (hsvc == NULL) 
     {
