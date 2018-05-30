@@ -230,6 +230,18 @@ int SystemCtrl_Cmd_Kill( boost::program_options::variables_map &vm )
               unitname.append(L".service");
         }
     
+
+        wstring kill_who;
+        if (vm.count("kill-who")) {
+            kill_who = vm["kill-who"].as<wstring>();
+        }
+
+        wstring kill_signal;
+        if (vm.count("signal")) {
+            kill_signal = vm["signal"].as<wstring>();
+        }
+        int kill_action = 0; // 2 do. Mainly reject other than SIGKILL or SIGTERM
+
         class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
         if (!unit) {
             // Complain and exit
@@ -237,11 +249,9 @@ int SystemCtrl_Cmd_Kill( boost::program_options::variables_map &vm )
             wcerr << usage.c_str();
             exit(1);
         }
-        unit->Kill(false); // We will add non-blocking later
+        unit->Kill(kill_action, kill_who, false); // We will add non-blocking later
     }
     return 0;
-    
-    return -1;
 }
 
 
@@ -746,6 +756,7 @@ void ParseArgs(int argc, wchar_t *argv[])
     boost::program_options::options_description desc{ "Options" };
     desc.add_options()
         ("command", boost::program_options::wvalue<wstring>(), "command to execute")
+        ("systemd-execpath", boost::program_options::wvalue<wstring>(), "location of service wrapper")
         ("system_units", boost::program_options::wvalue<vector<wstring>>(), "system_units")
         ("help,t", "Show this help")
         ("version", "Show package version")
@@ -800,8 +811,16 @@ void ParseArgs(int argc, wchar_t *argv[])
         system_units = vm["system_units"].as<vector<wstring>>();
     }
     wstring cmd;
+
     if (vm.count("command")) {
         cmd = vm["command"].as<wstring>();
+    }
+    else {
+        // show usage message
+    }
+
+    if (vm.count("systemd-execpath")) {
+         SystemDUnitPool::SERVICE_WRAPPER_PATH = vm["systemd-execpath"].as<wstring>();
     }
     else {
         // show usage message

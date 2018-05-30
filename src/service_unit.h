@@ -63,6 +63,7 @@ public:
     void SavePool() { };
 
    static wstring UNIT_DIRECTORY_PATH;        // Quasi constant inited in contructor
+   static wstring SERVICE_WRAPPER_PATH; // Single instance for everybody
 
 private:
    friend class SystemDUnit;
@@ -283,6 +284,7 @@ public:
     boolean UnregisterService();
     boolean CheckForRequisites();
     boolean WaitForAfters();
+    boolean SystemDUnit::Kill(int action, std::wstring killtarget, boolean block);
 
 
 private:
@@ -334,7 +336,7 @@ private:
     vector<class SystemDUnit *> start_dependencies; // Requires 
     vector<class SystemDUnit *> wait_dependencies;  // After
 
-    static wstring SERVICE_WRAPPER;
+    static wstring SERVICE_WRAPPER; // Single instance
 
     typedef boolean (SystemDUnit::*systemd_service_attr_func)( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask );
     static std::map< std::wstring , systemd_service_attr_func> SystemD_Service_Attribute_Map;
