@@ -1070,6 +1070,19 @@ boolean SystemDUnit::Disable(boolean block)
 }
 
 
+boolean SystemDUnit::Kill(int action, std::wstring killtarget, boolean block)
+
+{
+    wstring servicename = this->name;
+
+    // identify info to kill
+    
+    // and mark the object
+    this->is_enabled = false;
+    return false;
+}
+
+
 static boolean
 mask_required_unit(wstring file_path, void *context )
 
