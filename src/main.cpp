@@ -15,6 +15,9 @@
 #include "windows.h"
 #include "service_unit.h"
 #include <map>
+#include <boost/program_options.hpp>
+#include <boost/algorithm/string/trim.hpp>
+#include <boost/algorithm/string/join.hpp>
 
 char usage[] = "usage: "\
                "  systemctl start <servicename>\n" \
@@ -90,527 +93,593 @@ enum SystemCtl_Cmd {
 };
 
 
-int SystemCtrl_Cmd_List_Units( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_List_Units( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_List_Sockets( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_List_Sockets( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_List_Timers( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_List_Timers( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Start( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Start( boost::program_options::variables_map &vm )
 {
    wstring usage = L"usage: Systemctl start <unitname>[ unitname .. unitname]\n";
 
-    wstring unitname = argv[2] ;
-    if (unitname.empty()) {
-         // Complain and exit
-         wcerr << "No unit specified\n";
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    if (units.empty()) {
+        // Complain and exit
+        wcerr << "No unit specified\n";
          wcerr << usage.c_str();
          exit(1);
     }
 
-    if (unitname.rfind(L".service") == string::npos &&
-        unitname.rfind(L".target")  == string::npos &&
-        unitname.rfind(L".timer")   == string::npos &&
-        unitname.rfind(L".socket")  == string::npos ) {
-          unitname.append(L".service");
+    for (wstring unitname: units) {
+    
+        if (unitname.rfind(L".service") == string::npos &&
+            unitname.rfind(L".target")  == string::npos &&
+            unitname.rfind(L".timer")   == string::npos &&
+            unitname.rfind(L".socket")  == string::npos ) {
+              unitname.append(L".service");
+        }
+    
+        class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
+        if (!unit) {
+            // Complain and exit
+            wcerr << "Failed to enable unit: Unit file " << unitname.c_str() << "does not exist\n";
+            wcerr << usage.c_str();
+            exit(1);
+        }
+        unit->StartService(false); // We will add non-blocking later
     }
 
-    class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
-    if (!unit) {
-        // Complain and exit
-        wcerr << "Failed to enable unit: Unit file " << unitname.c_str() << "does not exist\n";
-        wcerr << usage.c_str();
-        exit(1);
-    }
-    unit->StartService(false); // We will add non-blocking later
     return 0;
 }
 
 
-int SystemCtrl_Cmd_Stop( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Stop( boost::program_options::variables_map &vm )
 {
    wstring usage = L"usage: Systemctl stop <unitname>\n";
 
-    wstring unitname = argv[2] ;
-    if (unitname.empty()) {
-         // Complain and exit
-         wcerr << "No unit specified\n";
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    if (units.empty()) {
+        // Complain and exit
+        wcerr << "No unit specified\n";
          wcerr << usage.c_str();
          exit(1);
     }
 
-    if (unitname.rfind(L".service") == string::npos) {
-          unitname.append(L".service");
+    for (wstring unitname: units) {
+        if (unitname.rfind(L".service") == string::npos) {
+              unitname.append(L".service");
+        }
+    
+        class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
+        if (!unit) {
+            // Complain and exit
+            wcerr << "Failed to enable unit: Unit file " << unitname.c_str() << "does not exist\n";
+            wcerr << usage.c_str();
+            exit(1);
+        }
+        unit->StopService(false); // We will add non-blocking later
     }
-
-    class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
-    if (!unit) {
-        // Complain and exit
-        wcerr << "Failed to enable unit: Unit file " << unitname.c_str() << "does not exist\n";
-        wcerr << usage.c_str();
-        exit(1);
-    }
-    unit->StopService(false); // We will add non-blocking later
     return 0;
 }
 
 
-int SystemCtrl_Cmd_Reload( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Reload( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Restart( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Restart( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Try_Restart( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Try_Restart( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Reload_Or_Restart( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Reload_Or_Restart( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Try_Reload_Or_Restart( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Try_Reload_Or_Restart( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Isolate( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Isolate( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Kill( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Kill( boost::program_options::variables_map &vm )
+
+{
+    wstring usage = L"usage: Systemctl kill unitname1 [unitname2 ...]\n";
+
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    if (units.empty()) {
+        // Complain and exit
+        wcerr << "No unit specified\n";
+        wcerr << usage.c_str();
+        exit(1);
+    }
+
+    for (wstring unitname: units) {
+        if (unitname.rfind(L".service") == string::npos) {
+              unitname.append(L".service");
+        }
+    
+
+        wstring kill_who;
+        if (vm.count("kill-who")) {
+            kill_who = vm["kill-who"].as<wstring>();
+        }
+
+        wstring kill_signal;
+        if (vm.count("signal")) {
+            kill_signal = vm["signal"].as<wstring>();
+        }
+        int kill_action = 0; // 2 do. Mainly reject other than SIGKILL or SIGTERM
+
+        class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
+        if (!unit) {
+            // Complain and exit
+            wcerr << "Failed to enable unit: Unit file " << unitname.c_str() << "does not exist\n";
+            wcerr << usage.c_str();
+            exit(1);
+        }
+        unit->Kill(kill_action, kill_who, false); // We will add non-blocking later
+    }
+    return 0;
+}
+
+
+int SystemCtrl_Cmd_Is_Active( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Is_Active( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Is_Failed( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Is_Failed( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Status( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Status( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Show( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Show( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Cat( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Cat( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Set_Property( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Set_Property( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Help( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Help( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Reset_Failed( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Reset_Failed( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_List_Dependencies( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_List_Dependencies( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_List_Unit_Files( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_List_Unit_Files( int argc, wchar_t *argv[] )
-{
-    return -1;
-}
-
-
-int SystemCtrl_Cmd_Enable( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Enable( boost::program_options::variables_map &vm )
 {
     wstring usage = L"usage: Systemctl enable <unitname>\n";
 
-    wstring unitname = argv[2] ;
-    if (unitname.empty()) {
-         // Complain and exit
-         wcerr << "No unit specified\n";
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    if (units.empty()) {
+        // Complain and exit
+        wcerr << "No unit specified\n";
          wcerr << usage.c_str();
          exit(1);
     }
 
-
-    // We allow a shorthand reference via just the service name, but 
-    // we recognise the valid file extensions if given.
-    if (unitname.rfind(L".service") == string::npos &&
-        unitname.rfind(L".target")  == string::npos &&
-        unitname.rfind(L".timer")   == string::npos &&
-        unitname.rfind(L".socket")  == string::npos ) {
-          unitname.append(L".service");
-    }
-
-    wstring service_unit_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"\\"+unitname; // We only look for service unit files in the top level directory
-    class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
-    if (!unit) {
-        unit = SystemDUnitPool::ReadServiceUnit(unitname, service_unit_path);
+    for (wstring unitname: units) {
+        // We allow a shorthand reference via just the service name, but 
+        // we recognise the valid file extensions if given.
+        if (unitname.rfind(L".service") == string::npos &&
+            unitname.rfind(L".target")  == string::npos &&
+            unitname.rfind(L".timer")   == string::npos &&
+            unitname.rfind(L".socket")  == string::npos ) {
+              unitname.append(L".service");
+        }
+    
+        wstring service_unit_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"\\"+unitname; // We only look for service unit files in the top level directory
+        class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
         if (!unit) {
-            // Complain and exit
-            wcerr << "Failed to load unit: Unit file " << service_unit_path.c_str() << "is invalid\n";
-            return false;       
-       }
+            unit = SystemDUnitPool::ReadServiceUnit(unitname, service_unit_path);
+            if (!unit) {
+                // Complain and exit
+                wcerr << "Failed to load unit: Unit file " << service_unit_path.c_str() << "is invalid\n";
+                return false;       
+           }
+        }
+        unit->Enable(false); // We will add non-blocking later
     }
-    unit->Enable(false); // We will add non-blocking later
 
     return 0;
 }
 
 
-int SystemCtrl_Cmd_Disable( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Disable( boost::program_options::variables_map &vm )
 {
     wstring usage = L"usage: Systemctl disable <unitname>\n";
 
-    wstring unitname = argv[3] ;
-    if (unitname.empty()) {
-         // Complain and exit
-         wcerr << "No unit specified\n";
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    if (units.empty()) {
+        // Complain and exit
+        wcerr << "No unit specified\n";
          wcerr << usage.c_str();
          exit(1);
     }
 
-    if (unitname.rfind(L".service") == string::npos) {
-          unitname.append(L".service");
-    }
-
-    class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
-    if (!unit) {
-        // Complain and exit
-        wcerr << "Failed to enable unit: Unit file " << unitname.c_str() << "does not exist\n";
-        wcerr << usage.c_str();
-        exit(1);
-    }
-    unit->Disable(false); // We will add non-blocking later
-    return 0;
-}
-
-
-int SystemCtrl_Cmd_Reenable( int argc, wchar_t *argv[] )
-{
-    return -1;
-}
-
-
-int SystemCtrl_Cmd_Preset( int argc, wchar_t *argv[] )
-{
-    return -1;
-}
-
-
-int SystemCtrl_Cmd_Preset_All( int argc, wchar_t *argv[] )
-{
-    return -1;
-}
-
-
-int SystemCtrl_Cmd_Is_Enabled( int argc, wchar_t *argv[] )
-{
-    wstring unitname = argv[2];
-    if (unitname.rfind(L".service") == string::npos) {
-          unitname.append(L".service");
-    }
-
-    SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
-    if (!unit) {
+    for (wstring unitname: units) {
+        if (unitname.rfind(L".service") == string::npos) {
+              unitname.append(L".service");
+        }
+    
+        class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
+        if (!unit) {
             // Complain and exit
-            wcerr << "Failed to get unit file state for " << unitname.c_str() << ": No such file or directory\n";
+            wcerr << "Failed to enable unit: Unit file " << unitname.c_str() << "does not exist\n";
+            wcerr << usage.c_str();
             exit(1);
-    }
-    if (unit->IsEnabled() ) {
-        wcout << L"enabled";
-        exit(0);
-    }
-    else {
-        wcout << L"false";
-        exit(1);
+        }
+        unit->Disable(false); // We will add non-blocking later
     }
     return 0;
 }
 
 
-int SystemCtrl_Cmd_Mask( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Reenable( boost::program_options::variables_map &vm )
+{
+    return -1;
+}
+
+
+int SystemCtrl_Cmd_Preset( boost::program_options::variables_map &vm )
+{
+    return -1;
+}
+
+
+int SystemCtrl_Cmd_Preset_All( boost::program_options::variables_map &vm )
+{
+    return -1;
+}
+
+
+int SystemCtrl_Cmd_Is_Enabled( boost::program_options::variables_map &vm )
+{
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    if (units.empty()) {
+        // Complain and exit
+        wcerr << "No unit specified\n";
+        exit(1);
+    }
+    else if (units.size() > 1) {
+        wcerr << "One unit only\n";
+        exit(2);
+    }
+
+    for (wstring unitname: units) {
+        SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
+        if (!unit) {
+                // Complain and exit
+                wcerr << "Failed to get unit file state for " << unitname.c_str() << ": No such file or directory\n";
+                exit(1);
+        }
+        if (unit->IsEnabled() ) {
+            wcout << L"enabled";
+            exit(0);
+        }
+        else {
+            wcout << L"false";
+            exit(1);
+        }
+    }
+    return 0;
+}
+
+
+int SystemCtrl_Cmd_Mask( boost::program_options::variables_map &vm )
 {
     wstring usage = L"usage: Systemctl mask <unitname>\n";
 
-    wstring unitname = argv[3] ;
-    if (unitname.empty()) {
-         // Complain and exit
-         wcerr << "No unit specified\n";
-         wcerr << usage.c_str();
-         exit(1);
-    }
-
-    if (unitname.rfind(L".service") == string::npos) {
-          unitname.append(L".service");
-    }
-
-    class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
-    if (!unit) {
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    if (units.empty()) {
         // Complain and exit
-        wcerr << "Failed to enable unit: Unit file " << unitname.c_str() << "does not exist\n";
-        wcerr << usage.c_str();
+        wcerr << "No unit specified\n";
         exit(1);
     }
-    unit->Mask(false); // We will add non-blocking later
+    else if (units.size() > 1) {
+        wcerr << "One unit only\n";
+        exit(2);
+    }
+
+    for (wstring unitname: units) {
+        if (unitname.rfind(L".service") == string::npos) {
+              unitname.append(L".service");
+        }
+    
+        class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
+        if (!unit) {
+            // Complain and exit
+            wcerr << "Failed to enable unit: Unit file " << unitname.c_str() << "does not exist\n";
+            wcerr << usage.c_str();
+            exit(1);
+        }
+        unit->Mask(false); // We will add non-blocking later
+    }
     return 0;
 }
 
 
-int SystemCtrl_Cmd_Unmask( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Unmask( boost::program_options::variables_map &vm )
 {
     wstring usage = L"usage: Systemctl unmask <unitname>\n";
 
-    wstring unitname = argv[3] ;
-    if (unitname.empty()) {
-         // Complain and exit
-         wcerr << "No unit specified\n";
-         wcerr << usage.c_str();
-         exit(1);
-    }
-
-    if (unitname.rfind(L".service") == string::npos) {
-          unitname.append(L".service");
-    }
-
-    class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
-    if (!unit) {
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    if (units.empty()) {
         // Complain and exit
-        wcerr << "Failed to enable unit: Unit file " << unitname.c_str() << "does not exist\n";
+        wcerr << "No unit specified\n";
         wcerr << usage.c_str();
         exit(1);
     }
-    unit->Unmask(false); // We will add non-blocking later
+    else if (units.size() > 1) {
+        wcerr << "One unit only\n";
+        wcerr << usage.c_str();
+        exit(2);
+    }
+
+    for (wstring unitname: units) {
+        if (unitname.rfind(L".service") == string::npos) {
+              unitname.append(L".service");
+        }
+    
+        class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
+        if (!unit) {
+            // Complain and exit
+            wcerr << "Failed to enable unit: Unit file " << unitname.c_str() << "does not exist\n";
+            wcerr << usage.c_str();
+            exit(1);
+        }
+        unit->Unmask(false); // We will add non-blocking later
+    }
     return 0;
 }
 
 
-int SystemCtrl_Cmd_Link( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Link( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Revert( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Revert( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Add_Wants( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Add_Wants( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Add_Requires( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Add_Requires( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Edit( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Edit( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Get_Default( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Get_Default( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Set_Default( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Set_Default( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_List_Machines( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_List_Machines( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_List_Jobs( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_List_Jobs( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Cancel( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Cancel( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Show_Environment( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Show_Environment( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Set_Environment( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Set_Environment( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Unset_Environment( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Unset_Environment( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Import_Environment( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Import_Environment( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Daemon_Reload( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Daemon_Reload( boost::program_options::variables_map &vm )
 {
     g_pool->ReloadPool( );
     return 0;
 }
 
 
-int SystemCtrl_Cmd_Daemon_Reexec( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Daemon_Reexec( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Is_System_Running( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Is_System_Running( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Default( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Default( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Rescue( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Rescue( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Emergency( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Emergency( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Halt( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Halt( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Poweroff( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Poweroff( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Reboot( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Reboot( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Kexec( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Kexec( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Exit( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Exit( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Switch_Root( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Switch_Root( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Suspend( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Suspend( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Hibernate( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Hibernate( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
-int SystemCtrl_Cmd_Hybrid_Sleep( int argc, wchar_t *argv[] )
+int SystemCtrl_Cmd_Hybrid_Sleep( boost::program_options::variables_map &vm )
 {
     return -1;
 }
 
 
 
-typedef int (*cmdfunc)( int argc, wchar_t *argv[] );
+typedef int (*cmdfunc)( boost::program_options::variables_map &vm );
 
 std::map< std::wstring , cmdfunc> Command_Map =  {
         { L"list-units", SystemCtrl_Cmd_List_Units},
@@ -679,22 +748,100 @@ void ParseArgs(int argc, wchar_t *argv[])
 
 {
     int result = 0;
+    boost::program_options::positional_options_description pd;
+    pd.add("command", 1);
+    pd.add("system_units", -1);
 
-    cmdfunc func = Command_Map[argv[1]];
+
+    boost::program_options::options_description desc{ "Options" };
+    desc.add_options()
+        ("command", boost::program_options::wvalue<wstring>(), "command to execute")
+        ("systemd-execpath", boost::program_options::wvalue<wstring>(), "location of service wrapper")
+        ("system_units", boost::program_options::wvalue<vector<wstring>>(), "system_units")
+        ("help,t", "Show this help")
+        ("version", "Show package version")
+        ("system", "Connect to system manager")
+        ("user", "Connect to user service manager")
+        ("host,H", boost::program_options::wvalue<wstring>(), "Operate on remote host")
+        ("machine,M", boost::program_options::wvalue<wstring>(), "Operate on local container")
+        ("type,t", boost::program_options::wvalue<wstring>(), "List units of a particular type")
+        ("state", boost::program_options::wvalue<wstring>(), "List units with particular LOAD or SUB or ACTIVE state")
+        ("property,p", boost::program_options::wvalue<wstring>(), "Show only properties by this name")
+        ("all,a", "Show all properties/all units currently in memory, including dead/empty ones. "\
+            "To list all units installed on the system, use the 'list-unit-files' command instead.")
+            ("failed", "Same as --state=failed")
+        ("full,l", "Don't ellipsize unit names on output")
+        ("recursive,r", "Show unit list of host and local containers")
+        ("reverse", "Show reverse dependencies with 'list-dependencies'")
+        ("job-mode", boost::program_options::wvalue<wstring>(), "Specify how to deal with already queued jobs, when queueing a new job")
+        ("show-types", "When showing sockets, explicitly show their type")
+        ("value", "When showing properties, only print the value")
+        ("ignore-inhibitors,i", "When shutting down or sleeping, ignore inhibitors")
+        ("kill-who", boost::program_options::wvalue<wstring>(), "Who to send signal to")
+        ("signal,s", boost::program_options::wvalue<wstring>(), "Which signal to send")
+        ("now", "Start or stop unit in addition to enabling or disabling it")
+        ("quiet", "Suppress output")
+        ("wait", "For (re)start, wait until service stopped again")
+        ("no-block", "Do not wait until operation finished")
+        ("no-wall", "Don't send wall message before halt/power-off/reboot")
+        ("no-reload", "Don't reload daemon after en-/dis-abling unit files")
+        ("no-legend", "Do not print a legend (column headers and hints)")
+        ("no-pager", "Do not pipe output into a pager")
+        ("no-ask-password", "Do not ask for system passwords")
+        ("global", "Enable/disable unit files globally")
+        ("runtime", "Enable unit files only temporarily until next reboot")
+        ("force,f", "When enabling unit files, override existing symlinks When shutting down, execute action immediately")
+        ("preset-mode", boost::program_options::wvalue<wstring>(), "Apply only enable, only disable, or all presets")
+        ("root", "Enable unit files in the specified root directory")
+        ("lines,n", boost::program_options::wvalue<int>(), "Number of journal entries to show")
+        ("output", boost::program_options::wvalue<wstring>(), "Change journal output mode (short, short-precise, short-iso, short-iso-precise, "\
+            "short-full, short-monotonic, short-unix, verbose, export, json, json-pretty, json-sse, cat)")
+            ("firmware-setup", "Tell the firmware to show the setup menu on next boot")
+        ("plain", "Print unit dependencies as a list instead of a tree");
+
+    boost::program_options::variables_map vm;
+    auto parsed = boost::program_options::wcommand_line_parser(argc, argv)
+        .options(desc).positional(pd).allow_unregistered().run();
+    boost::program_options::store(parsed, vm);
+    auto additionalArgs = collect_unrecognized(parsed.options, boost::program_options::include_positional);
+    boost::program_options::notify(vm);
+
+    vector<wstring> system_units;
+    if (vm.count("system_units")) {
+        system_units = vm["system_units"].as<vector<wstring>>();
+    }
+    wstring cmd;
+
+    if (vm.count("command")) {
+        cmd = vm["command"].as<wstring>();
+    }
+    else {
+        // show usage message
+    }
+
+    if (vm.count("systemd-execpath")) {
+         SystemDUnitPool::SERVICE_WRAPPER_PATH = vm["systemd-execpath"].as<wstring>();
+    }
+    else {
+        // show usage message
+    }
+
+
+    cmdfunc func = Command_Map[cmd];
     if (!func) {
         std::wstringstream msg;
-        msg << "Invalid command " << argv[1];
+        msg << "Invalid command " << cmd;
         std::wstring ws = msg.str();
         std::string msgstr = std::string(ws.begin(), ws.end());
 
         throw std::exception(msgstr.c_str());
     }
     else {
-        result = (*func)(argc, argv);
+        result = (*func)(vm);
 
         if (result) {
             std::wstringstream msg;
-            msg << "the command " << argv[1] << " is not implemented";
+            msg << "the command " << cmd << " is not implemented";
             std::wstring ws = msg.str();
             std::string msgstr = std::string(ws.begin(), ws.end());
 

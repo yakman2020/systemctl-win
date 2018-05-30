@@ -22,6 +22,7 @@
 using namespace std;
 
 wstring SystemDUnit::SERVICE_WRAPPER = L"systemd-exec.exe";
+wstring SystemDUnitPool::SERVICE_WRAPPER_PATH;
 
 boolean SystemDUnit::StartService(boolean blocking)
 {
@@ -34,15 +35,23 @@ boolean SystemDUnit::StartService(boolean blocking)
 
     SC_HANDLE hsvc = OpenServiceW(hsc, this->name.c_str(), SERVICE_ALL_ACCESS);
     if (!hsvc) {
-        wcerr << L"In StartService: OpenService failed " << GetLastError() << std::endl;
+        wcerr << L"In StartService(" << this->name << "): OpenService failed " << GetLastError() << std::endl;
         CloseServiceHandle(hsc);
         return false;
     }
 
     if (!StartServiceW(hsvc, 0, NULL)) {
-        wcerr << L"In StartService : StartService failed " << GetLastError() << std::endl;
-        CloseServiceHandle(hsvc);
-        return false;
+        DWORD errcode = GetLastError();
+
+        if (errcode != ERROR_SERVICE_EXISTS) {
+            // The service already running is not an error
+            wcerr << L"In StartService(" << this->name  << "): StartService failed " << GetLastError() << std::endl;
+            CloseServiceHandle(hsvc);
+            return false;
+        }
+        else {
+            wcerr << L"In StartService(" << this->name  << "): StartService running " << std::endl;
+        }
     }
     
     CloseServiceHandle(hsvc); 
@@ -62,14 +71,14 @@ boolean SystemDUnit::StopService(boolean blocking)
 
     SC_HANDLE hsvc = OpenServiceW(hsc, this->name.c_str(), SERVICE_ALL_ACCESS);
     if (!hsvc) {
-        wcerr << L"In Stop service: OpenService failed " << GetLastError() << std::endl;
+        wcerr << L"In Stop service(" << this->name << "): OpenService failed " << GetLastError() << std::endl;
         CloseServiceHandle(hsc);
         return false;
     }
 
     SERVICE_STATUS status = { 0 };
     if (ControlService(hsvc, SERVICE_CONTROL_STOP, &status)) {
-        wcerr << L"StopService failed " << GetLastError() << std::endl;
+        wcerr << L"StopService(" << this->name << ") failed " << GetLastError() << std::endl;
         CloseServiceHandle(hsvc);
         return false;
     }
@@ -148,6 +157,7 @@ SystemDUnit::RegisterService()
     std::wstringstream wcmdline ;
 
    // wcmdline << wspath;
+    wcmdline << SystemDUnitPool::SERVICE_WRAPPER_PATH.c_str();
     wcmdline << SERVICE_WRAPPER.c_str();
     wcmdline << L" ";
     wcmdline << L" --service-name ";
