@@ -69,19 +69,20 @@ SystemDUnitPool::CopyUnitFileToActive(wstring servicename)
         wstring service_unit_path = SystemDUnitPool::UNIT_DIRECTORY_PATH+L"\\"+servicename;
     
         // Find the unit in the unit library
-        wifstream fs(service_unit_path, std::fstream::in);
+        wifstream fs(service_unit_path, std::fstream::in | std::fstream::binary);
         if (!fs.is_open()) {
              wcerr << "No service unit " << servicename.c_str() << "Found in unit library" << endl;
              return false;
         }
         fs.seekg (0, fs.end);
         int length = fs.tellg();
+        std:wcerr << "length " << length << std::endl;
         fs.seekg (0, fs.beg);
         wchar_t *buffer = new wchar_t [length];
-        fs.read (buffer,length);
+        fs.read (buffer, length);
         fs.close();
 
-        wofstream ofs(SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+servicename);
+        wofstream ofs(SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH+L"\\"+servicename, std::fstream::out | std::fstream::binary);
         ofs.write (buffer,length);
         ofs.close();    
     }
@@ -1312,7 +1313,31 @@ void setup_other_dependencies(std::pair<std::wstring, class SystemDUnit *> entry
     }
 }
 
+SystemDUnitPool::SystemDUnitPool() 
 
+{
+    wstring system_drive;
+    DWORD rslt = GetEnvironmentVariableW( L"SystemDrive", BUFFER, MAX_BUFFER_SIZE);
+
+    if (rslt == 0) {
+        system_drive = L"C:";
+    }
+    else {
+        system_drive = BUFFER;
+    }
+
+    UNIT_DIRECTORY_PATH = system_drive + L"\\etc\\SystemD\\system";
+    ACTIVE_UNIT_DIRECTORY_PATH = system_drive + L"\\etc\\SystemD\\active";
+    UNIT_WORKING_DIRECTORY_PATH = system_drive + L"\\etc\\SystemD\\run";
+
+    wchar_t name_buffer[2048]; 
+    ::GetModuleFileNameW(NULL, name_buffer, 2048);
+    wstring mypath = name_buffer;
+    size_t index = mypath.find_last_of(L"\\/")+1;
+    mypath.erase(index);
+
+    SERVICE_WRAPPER_PATH = mypath; // Single instance for everybody
+}
 
 void SystemDUnitPool::ReloadPool()
 

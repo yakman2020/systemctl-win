@@ -25,23 +25,7 @@ extern class SystemDUnitPool *g_pool;
 
 class SystemDUnitPool {
 public:
-    SystemDUnitPool() {
-               wstring system_drive;
-               DWORD rslt = GetEnvironmentVariableW(
-                    L"SystemDrive", BUFFER, MAX_BUFFER_SIZE);
-             
-               if (rslt == 0) {
-                   system_drive = L"C:";
-               }
-               else {
-                   system_drive = BUFFER;
-               }
-               
-               UNIT_DIRECTORY_PATH = system_drive + L"\\etc\\SystemD\\system";
-               ACTIVE_UNIT_DIRECTORY_PATH = system_drive + L"\\etc\\SystemD\\active";
-               UNIT_WORKING_DIRECTORY_PATH = system_drive + L"\\etc\\SystemD\\run";
-          };
-
+    SystemDUnitPool();
     ~SystemDUnitPool() { };
  
     std::map<std::wstring, class SystemDUnit*>&GetPool() { return pool; };
