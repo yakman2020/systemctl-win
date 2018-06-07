@@ -16,6 +16,8 @@
 #include <sstream>
 #include <algorithm>
 #include <ios>
+#include <LsaLookup.h>
+#include <ntsecapi.h>
 #include "service_unit.h"
 
 
@@ -28,7 +30,68 @@ void
 SystemDUnit::AddUserServiceLogonPrivilege()
 
 {
-   wcerr << L"*** 21do: NEED TO ADD the SERVICELOGON PRIVILEGE" << std::endl;
+    PCREDENTIALW pcred = NULL;
+    wstring username;
+
+    {
+        //--- RETRIEVE user credentials we need the username in order to get the SID
+
+        BOOL ok = ::CredReadW (L"dcos/app", CRED_TYPE_GENERIC, 0, &pcred);
+        if (!ok) {
+            wcerr << L"CredRead() failed in AddUserServiceLogonPriveilege - errno " << GetLastError() << std::endl;
+        }
+        else {
+            username = wstring(pcred->UserName); // L"wp128869010\\azureuser"; // 
+            wcerr << L"Read username = " << username << std::endl;
+        }
+        // must free memory allocated by CredRead()!
+        ::CredFree (pcred);
+    }
+
+    // Get the sid
+    SID sid = {0};
+    DWORD namelen = username.size();
+    wchar_t *username_buffer = (wchar_t*)username.c_str();
+    DWORD domainlen = 0;
+    SID_NAME_USE nameuse;
+    wcerr << L"ADD the SERVICELOGON PRIVILEGE" << std::endl;
+    if (!LookupAccountSidW( NULL,  // this system
+                           &sid,  // lookup result
+                           username_buffer,   // lp name
+                           &namelen,     // cchName
+                           NULL,
+                           &domainlen,
+                           &nameuse )) {
+        DWORD err = GetLastError();
+        wcerr << L"LookupAccountSid() failed in AddUserServiceLogonPriveilege - errno " << GetLastError() << std::endl;
+        return;
+    }
+
+    // Get the LSA_HANDLE
+    LSA_OBJECT_ATTRIBUTES attrs = {0};
+    LSA_HANDLE policy_h;
+    DWORD status = LsaOpenPolicy(NULL, &attrs, POLICY_ALL_ACCESS, &policy_h);
+    if (status != S_OK) {
+        wcerr << L"LsaOpenPolicy() failed in AddUserServiceLogonPriveilege - errno " << status << std::endl;
+        return;
+    }
+
+    static const std::wstring se_service_logon = L"SeServiceLogonRight";
+    LSA_UNICODE_STRING privs[1];
+    privs[0].Length = se_service_logon.length()*sizeof(wchar_t);
+    privs[0].MaximumLength = se_service_logon.max_size()*sizeof(wchar_t);
+    privs[0].Buffer = (wchar_t *)(se_service_logon.c_str());
+
+    status = LsaAddAccountRights( policy_h,
+                                  &sid,
+                                  privs,
+                                  1);
+    if (status != S_OK) {
+        wcerr << L"LsaAddAccountRights() failed in AddUserServiceLogonPriveilege - errno " << status << std::endl;
+        return;
+    }
+
+    wcerr << L"Service Logon right added" << std::endl;
 }
 
 
@@ -216,9 +279,9 @@ if (!*pelem) break;
             wcerr << L"CredRead() failed - errno " << GetLastError() << std::endl;
         }
         else {
-			user_password = wstring((wchar_t*)pcred->CredentialBlob, pcred->CredentialBlobSize / sizeof(wchar_t));
-			username = wstring(pcred->UserName); // L"wp128869010\\azureuser"; // 
-            wcerr << L"Read username = " << username << " password= " << user_password << std::endl;
+            user_password = wstring((wchar_t*)pcred->CredentialBlob, pcred->CredentialBlobSize / sizeof(wchar_t));
+            username = wstring(pcred->UserName); // L"wp128869010\\azureuser"; // 
+            // wcerr << L"Read username = " << username << " password= " << user_password << std::endl;
         }
         // must free memory allocated by CredRead()!
         ::CredFree (pcred);
@@ -244,7 +307,7 @@ if (!*pelem) break;
         NULL,                      // no tag identifier 
         wdependency_list.c_str(),  // no dependencies 
         username.c_str(), //pcred? username.c_str(): NULL,  // LocalSystem account 
-		user_password.c_str()); // pcred ? user_password.c_str() : NULL);   // no password 
+        user_password.c_str()); // pcred ? user_password.c_str() : NULL);   // no password 
  
     if (hsvc == NULL) 
     {
