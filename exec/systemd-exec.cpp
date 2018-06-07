@@ -685,8 +685,10 @@ int wmain(int argc, wchar_t *argv[])
 *logfile << L"log file name " << args.logFilePath.c_str() << std::endl;
 
         params.szServiceName  = args.serviceName.c_str();
-        params.szShellCmdPre  = args.shellCmd_pre.c_str();
-        params.szShellCmdPost = args.shellCmd_post.c_str();
+   //     params.szShellCmdPre  = args.shellCmd_pre.c_str();
+        params.szShellCmdPre  = L"";
+   //     params.szShellCmdPost = args.shellCmd_post.c_str();
+        params.szShellCmdPost = L"";
 
         params.execStartPre = args.execStartPre;
         params.execStart      = args.execStart;

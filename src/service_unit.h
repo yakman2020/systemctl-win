@@ -268,8 +268,9 @@ public:
     boolean UnregisterService();
     boolean CheckForRequisites();
     boolean WaitForAfters();
-    boolean SystemDUnit::Kill(int action, std::wstring killtarget, boolean block);
+    boolean Kill(int action, std::wstring killtarget, boolean block);
 
+   static void AddUserServiceLogonPrivilege();
 
 private:
     wstring ParseUnitSection( wifstream &fs);
