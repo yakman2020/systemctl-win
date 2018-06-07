@@ -24,6 +24,15 @@ using namespace std;
 wstring SystemDUnit::SERVICE_WRAPPER = L"systemd-exec.exe";
 wstring SystemDUnitPool::SERVICE_WRAPPER_PATH;
 
+void
+SystemDUnit::AddUserServiceLogonPrivilege()
+
+{
+   wcerr << L"*** 21do: NEED TO ADD the SERVICELOGON PRIVILEGE" << std::endl;
+}
+
+
+
 boolean SystemDUnit::StartService(boolean blocking)
 {
     SC_HANDLE hsc = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
@@ -43,14 +52,24 @@ boolean SystemDUnit::StartService(boolean blocking)
     if (!StartServiceW(hsvc, 0, NULL)) {
         DWORD errcode = GetLastError();
 
-        if (errcode != ERROR_SERVICE_EXISTS) {
+        switch(errcode) {
+        case ERROR_SERVICE_EXISTS:
             // The service already running is not an error
             wcerr << L"In StartService(" << this->name  << "): StartService failed " << GetLastError() << std::endl;
             CloseServiceHandle(hsvc);
             return false;
-        }
-        else {
+
+        case ERROR_ACCESS_DENIED:
+
+            // The user lacks the necessary privelege. Add it and retry
+
+            CloseServiceHandle(hsvc); 
+            AddUserServiceLogonPrivilege();
+            return StartService(blocking);
+
+        default:
             wcerr << L"In StartService(" << this->name  << "): StartService running " << std::endl;
+            break;
         }
     }
     
