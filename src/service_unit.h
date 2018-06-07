@@ -160,6 +160,7 @@ public:
             this->is_enabled        = false;
             this->remain_after_exit = false;
             g_pool->GetPool().insert(std::make_pair(name, this));
+            this->m_retry = 0;
         };
     ~SystemDUnit() {  };
 
@@ -291,6 +292,7 @@ private:
     wstring  pid_file;            // aboslute path of the pid file of the service. recommended for type = forking
     wstring  bus_name;            // d-bus bus name (in windows this is just a service id) . Required for type = dbus
     enum ServiceType service_type;
+    int m_retry;
 
     enum RestartAction restart_action; // Restart= attribute parsed.
     double restart_sec;             // time to sleep before restarting a service. Default 100ms

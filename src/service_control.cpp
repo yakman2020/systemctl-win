@@ -61,11 +61,14 @@ boolean SystemDUnit::StartService(boolean blocking)
 
         case ERROR_ACCESS_DENIED:
 
-            // The user lacks the necessary privelege. Add it and retry
+            // The user lacks the necessary privelege. Add it and retry once
 
             CloseServiceHandle(hsvc); 
             AddUserServiceLogonPrivilege();
-            return StartService(blocking);
+            if (!this->m_retry++ ) {
+               return  StartService(blocking);
+            }
+            return false;
 
         default:
             wcerr << L"In StartService(" << this->name  << "): StartService running " << std::endl;
