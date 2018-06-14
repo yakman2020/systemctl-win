@@ -83,12 +83,42 @@ SystemDUnit::AddUserServiceLogonPrivilege()
     LSA_OBJECT_ATTRIBUTES attrs = {0};
     LSA_HANDLE policy_h;
     DWORD status = LsaOpenPolicy(NULL, &attrs, POLICY_ALL_ACCESS, &policy_h);
-    if (status != S_OK) {
+    if (status) {
         wcerr << L"LsaOpenPolicy() failed in AddUserServiceLogonPrivilege - errno " << status << std::endl;
         return;
     }
 
+    // Check to see if the right is already there. We coiuld just set it but that assumes the 
+    // underlying code will definitely tolerate that.  Rather not take that bet.
+
     static const std::wstring se_service_logon = L"SeServiceLogonRight";
+    LSA_UNICODE_STRING *pprivs = NULL;
+    unsigned long priv_count = 0;
+
+    status = LsaEnumerateAccountRights( policy_h,
+                                  psid,
+                                  &pprivs,
+                                  &priv_count);
+    if (status) {
+        wcerr << L"LsaEnumerateAccountRights() failed in AddUserServiceLogonPrivilege - errno " << LsaNtStatusToWinError(status) << std::endl;
+	LsaClose(policy_h);
+        return;
+    }
+
+    for (unsigned long i = 0; i < priv_count; i++ ) {
+        if (pprivs && pprivs[i].Buffer) {
+	    if (se_service_logon.compare(0, pprivs[i].Length, pprivs[i].Buffer) == 0) {
+                wcerr << L"Service Logon right already present" << std::endl;
+                LsaFreeMemory(pprivs);
+		LsaClose(policy_h);
+		return;
+	    }
+	}
+    }
+
+    LsaFreeMemory(pprivs);
+
+
     LSA_UNICODE_STRING privs[1];
     privs[0].Length = se_service_logon.length()*sizeof(wchar_t);
     privs[0].MaximumLength = se_service_logon.max_size()*sizeof(wchar_t);
@@ -98,11 +128,13 @@ SystemDUnit::AddUserServiceLogonPrivilege()
                                   psid,
                                   privs,
                                   1);
-    if (status != S_OK) {
+    if (status) {
         wcerr << L"LsaAddAccountRights() failed in AddUserServiceLogonPrivilege - errno " << status << std::endl;
+	LsaClose(policy_h);
         return;
     }
 
+    LsaClose(policy_h);
     wcerr << L"Service Logon right added" << std::endl;
 }
 
@@ -110,6 +142,8 @@ SystemDUnit::AddUserServiceLogonPrivilege()
 
 boolean SystemDUnit::StartService(boolean blocking)
 {
+    AddUserServiceLogonPrivilege();  // We do this unconditionally 
+
     SC_HANDLE hsc = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (!hsc) {
         int last_error = GetLastError();
@@ -139,8 +173,9 @@ boolean SystemDUnit::StartService(boolean blocking)
 
             // The user lacks the necessary privelege. Add it and retry once
 
+            wcerr << L"In StartService(" << this->name  << "): StartService failed to logon erno = " << GetLastError() << std::endl;
             CloseServiceHandle(hsvc); 
-            AddUserServiceLogonPrivilege();
+            AddUserServiceLogonPrivilege();  // We do this unconditionally 
             if (!this->m_retry++ ) {
                return  StartService(blocking);
             }
