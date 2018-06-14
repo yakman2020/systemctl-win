@@ -1007,7 +1007,7 @@ wcerr << L"w1" << std::endl;
 
             // This is wanted not needed. We don't fail
         }
-wcerr << L"w3" << std::endl;
+wcerr << L"w3 other_unit->name = " << pother_unit->name << std::endl;
         if (pother_unit) {
             (void)pother_unit->Enable(true);
 wcerr << L"w4" << std::endl;
@@ -1019,6 +1019,10 @@ wcerr << L"w4" << std::endl;
         // We don't error but we don't do anything
         return true;
     }
+
+for( auto dependent : this->start_dependencies ) {
+wcerr << L"w5 dep = " << dependent->name << std::endl;
+}
 
     this->RegisterService();
     this->is_enabled = true;

@@ -20,6 +20,9 @@
 #include <ntsecapi.h>
 #include "service_unit.h"
 
+// relevant status from ntstatus.h
+#define STATUS_NO_SUCH_FILE 0xc00000f
+#define STATUS_SUCCESS      0x0
 
 using namespace std;
 
@@ -95,16 +98,15 @@ SystemDUnit::AddUserServiceLogonPrivilege()
     LSA_UNICODE_STRING *pprivs = NULL;
     unsigned long priv_count = 0;
 
+
     status = LsaEnumerateAccountRights( policy_h,
                                   psid,
                                   &pprivs,
                                   &priv_count);
-    if (status) {
-        wcerr << L"LsaEnumerateAccountRights() failed in AddUserServiceLogonPrivilege - errno " << LsaNtStatusToWinError(status) << std::endl;
-	LsaClose(policy_h);
-        return;
-    }
 
+    // status isn't so great for enum, because it can return several non zero values in normal operation.
+    // so we just check for the result if it fails or succeeds. priv_count will be 0 if it fails. That is normal
+    // if no privs are configured.
     for (unsigned long i = 0; i < priv_count; i++ ) {
         if (pprivs && pprivs[i].Buffer) {
 	    if (se_service_logon.compare(0, pprivs[i].Length, pprivs[i].Buffer) == 0) {
@@ -142,7 +144,7 @@ SystemDUnit::AddUserServiceLogonPrivilege()
 
 boolean SystemDUnit::StartService(boolean blocking)
 {
-    AddUserServiceLogonPrivilege();  // We do this unconditionally 
+    // AddUserServiceLogonPrivilege();  // We do this unconditionally  we do this in enable
 
     SC_HANDLE hsc = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (!hsc) {
@@ -287,9 +289,10 @@ SystemDUnit::RegisterService()
 
     std::wstring wservice_name         = this->name;
     std::wstring wservice_display_name = this->name;
-    std::wstring wdependency_list;
 
     std::wstringstream wcmdline ;
+
+    AddUserServiceLogonPrivilege(); // Make sure the user can actually use the thing.
 
    // wcmdline << wspath;
     wcmdline << SystemDUnitPool::SERVICE_WRAPPER_PATH.c_str();
@@ -303,18 +306,25 @@ SystemDUnit::RegisterService()
     wcmdline << "\\";
     wcmdline << wservice_name.c_str();
 
+    int wchar_needed = 0;
     for (auto dependent : this->start_dependencies) {
-        std::wstring wdep = dependent->name;
-        if (wdep.rfind(L".service") != string::npos) {
-            wdependency_list.append(wdep);
-            wdependency_list.push_back('\0');
-        }
+        wchar_needed += dependent->name.size()+1;
     }
-    wdependency_list.push_back('\0');
+    wchar_needed++; // For the trailing null
 
-for (wchar_t *pelem = (wchar_t*)wdependency_list.c_str(); pelem < wdependency_list.c_str()+wdependency_list.size(); ) {
+    std::wstring wdependency_list(wchar_needed, L'\0');
+    wchar_t *bufp = (wchar_t*)wdependency_list.c_str();
+    for (auto dependent : this->start_dependencies) {
+        memcpy(bufp, dependent->name.c_str(), dependent->name.size()*sizeof(wchar_t));
+	bufp += dependent->name.size();
+	*bufp++ = L'\0';
+    }
+    *bufp++ = L'\0';
+
+for (wchar_t *pelem = (wchar_t*)wdependency_list.c_str(); pelem < wdependency_list.c_str()+wdependency_list.max_size(); ) {
 wcerr << "dependent: " << pelem << std::endl;
-pelem += wcslen(pelem);
+pelem += wcslen(pelem);	
+pelem++;
 if (!*pelem) break;
 }
 
