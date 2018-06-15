@@ -376,6 +376,18 @@ if (!*pelem) break;
         return false;
     }
     
+    // We query the status to ensure that the service has actually been created.
+
+    SERVICE_STATUS svc_stat = {0};
+
+    for (int retries = 0; retries < 5; retries++ ) {
+        if (QueryServiceStatus(hsvc, &svc_stat)) {
+            wcerr << L"QueryServiceStatus succeed" << std::endl; 
+	    break;
+	}
+        wcerr << L"QueryServiceStatus failed " << GetLastError() << std::endl; 
+    }
+
     CloseServiceHandle(hsvc); 
     CloseServiceHandle(hsc);
 
