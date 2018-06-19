@@ -699,6 +699,7 @@ DWORD WINAPI CWrapperService::ServiceThread(LPVOID param)
     boolean waitforfinish = true;
 
     do {
+        exitCode = 0;
         self->SetServiceStatus(SERVICE_RUNNING);
         self->m_IsStopping = FALSE;
     
@@ -721,15 +722,17 @@ DWORD WINAPI CWrapperService::ServiceThread(LPVOID param)
             {
                 wostringstream os;
                 if (!result) {
-                    *logfile << L"GetExitCodeProcess failed";
+                    *logfile << L"GetExitCodeProcess failed" << std::endl;
                 }
                 else {
-                    *logfile << L"Command \"" << self->m_ExecStartCmdLine << L"\" failed with exit code: " << exitCode;
+                    *logfile << L"Command \"" << self->m_ExecStartCmdLine 
+		             << L"\" failed with exit code: " << exitCode << std::endl;
                 }
-                return exitCode;
             }
         }
     
+        self->SetServiceStatus(SERVICE_STOP_PENDING);
+
     *logfile << "process success " << self->m_ExecStartCmdLine << std::endl;
     
         switch ( self->m_RestartAction ) {
@@ -740,9 +743,8 @@ DWORD WINAPI CWrapperService::ServiceThread(LPVOID param)
     
         case RESTART_ACTION_ALWAYS:
             done = false; 
-            self->SetServiceStatus(SERVICE_STOPPED);
             *logfile << L"Restart always in " << self->m_RestartMillis << L" milliseconds" << std::endl;
-            ::SleepEx(self->m_RestartMillis, TRUE);
+            ::SleepEx(self->m_RestartMillis, FALSE);
             *logfile << L"Restart always" << std::endl;
             break;
 
@@ -751,7 +753,6 @@ DWORD WINAPI CWrapperService::ServiceThread(LPVOID param)
                done = true;
             }
             else {
-                self->SetServiceStatus(SERVICE_STOPPED);
                 *logfile << L"Restart on success in " << self->m_RestartMillis << L" milliseconds" << std::endl;
                 ::SleepEx(self->m_RestartMillis, TRUE); // But we respect restartSec.
             }
@@ -762,7 +763,6 @@ DWORD WINAPI CWrapperService::ServiceThread(LPVOID param)
                done = true;
             }
             else {
-                self->SetServiceStatus(SERVICE_STOPPED);
                 *logfile << L"Restart on success in " << self->m_RestartMillis << L" milliseconds" << std::endl;
                 ::SleepEx(self->m_RestartMillis, TRUE); // But we respect restartSec.
             }
@@ -776,6 +776,7 @@ DWORD WINAPI CWrapperService::ServiceThread(LPVOID param)
             ::SleepEx(self->m_RestartMillis, TRUE); // But we respect restartSec.
             break;
         }    
+        *logfile << L"done = " << done << std::endl;
     } while (!done);
 
 *logfile << L"exit service OnStart: " << std::endl;

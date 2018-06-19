@@ -387,6 +387,7 @@ if (!*pelem) break;
 	}
         wcerr << L"QueryServiceStatus failed " << GetLastError() << std::endl; 
     }
+    ::Sleep(100); // Because even the query doesn't seem to beat whatever race condition
 
     CloseServiceHandle(hsvc); 
     CloseServiceHandle(hsc);
