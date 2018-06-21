@@ -154,7 +154,7 @@ private:
     static enum OUTPUT_TYPE StrToOutputType( std::wstring ws, std::wstring *path );
     unsigned ProcessSpecialCharacters( std::wstring &ws);
 
-    PROCESS_INFORMATION StartProcess(LPCWSTR cmdLine, DWORD processFlags, bool waitForProcess, bool failOnError=false);
+    PROCESS_INFORMATION &StartProcess(LPCWSTR cmdLine, DWORD processFlags, bool waitForProcess, bool failOnError=false);
     boolean EvaluateConditions();
     std::wstring ResolveEnvVars(std::wstring str); // Expands any environment variables that are in the 
                                                    // string. We need to do this for things like directories
