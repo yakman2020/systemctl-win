@@ -350,6 +350,8 @@ int SystemCtrl_Cmd_Enable( boost::program_options::variables_map &vm )
         unit->Enable(false); // We will add non-blocking later
     }
 
+    ::Sleep(1000);
+
     return 0;
 }
 
