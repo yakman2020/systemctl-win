@@ -18,7 +18,9 @@
 \***************************************************************************/
 
 #pragma once
+#ifndef UNICODE
 #define UNICODE
+#endif
 #include <fstream>
 #include <windows.h>
 #include "journalstream.h"

@@ -17,10 +17,14 @@ under the License.
 
 #pragma once
 
+#ifndef UNICODE
 #define UNICODE
+#endif
 #include <string>
+#include <sstream>
 #include <map>
 #include <vector>
+#include <exception>
 #include "journalstream.h"
 #include "ServiceBase.h"
 
@@ -126,6 +130,23 @@ protected:
 
 private:
 
+    struct RestartException : public std::exception
+    {
+        std::string msg;
+        DWORD exitCode;
+
+        RestartException(DWORD err, const char *str=NULL) {
+            msg = str;
+            exitCode = err;
+        }
+
+	const char * what () const throw ()
+        {
+            std::stringstream ss;
+            ss << msg << "exit code: " << exitCode ;
+       	    return ss.str().c_str();
+        }
+    };
 
     // Special executable prefixes. See systemd.service
     // we make a mask because some chars may be used together

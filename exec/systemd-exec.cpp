@@ -284,7 +284,7 @@ CLIArgs ParseArgs(int argc, wchar_t *argv[])
                 args.unitPath[i] = '/';
             }
         }
-        int start_index = args.unitPath.rfind('/');
+        size_t start_index = args.unitPath.rfind('/');
 *logfile << L"start index = " << start_index << std::endl;
         args.serviceUnit = args.unitPath.substr(start_index+1, args.unitPath.length() - start_index);
 *logfile << L"has service unit " << args.serviceUnit.c_str() << std::endl;

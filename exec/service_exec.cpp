@@ -353,7 +353,7 @@ void CWrapperService::GetCurrentEnv()
 void CWrapperService::LoadEnvVarsFromFile(const wstring& path)
 {
 
-    int ext_idx = path.find_last_of(L'.');
+    size_t ext_idx = path.find_last_of(L'.');
     wstring file_ext = ext_idx != std::string::npos? path.substr(ext_idx) : L"";
 
     if (file_ext.compare(L".ps1") == 0) {
@@ -499,7 +499,7 @@ PROCESS_INFORMATION &CWrapperService::StartProcess(LPCWSTR cmdLine, DWORD proces
         os << L"Error " << err << L" while spawning the process: " << cmdLine << std::endl;
         *logfile << os.str();
         string str = wstring_convert<codecvt_utf8<WCHAR>>().to_bytes(os.str());
-        throw exception(str.c_str());
+        throw RestartException(err, str.c_str());
     }
 
     if(waitForProcess)
@@ -522,7 +522,7 @@ PROCESS_INFORMATION &CWrapperService::StartProcess(LPCWSTR cmdLine, DWORD proces
             }
 
             string str = wstring_convert<codecvt_utf8<WCHAR>>().to_bytes(os.str());
-            throw exception(str.c_str());
+            throw RestartException(exitCode, str.c_str());
         }
 *logfile << "process success " << cmdLine << std::endl;
     }
@@ -571,210 +571,214 @@ DWORD WINAPI CWrapperService::ServiceThread(LPVOID param)
 { 
     CWrapperService *self = (CWrapperService *)param;
     DWORD exitCode = 0;
-    boolean done = false;
+    boolean done  = false;
 
     boolean waitforfinish = true;
-        do {
+    do {
+        try {
 
 *logfile << L"start " << self->m_ServiceName << std::endl;
-        if (!self->EvaluateConditions()) {
-            self->SetServiceStatus(SERVICE_STOPPED);
-            return 0;
-        }
-
-        // If files before exist, bail.
-        for (auto before : self->m_FilesBefore) {
-            *logfile << L"before file " << before << std::endl;
-
-            wstring path = self->m_unitPath;
-
-            path.append(before);
-            wifstream wifs(path);
-            if (wifs.is_open()) {
-                *logfile << L"before file " << before << " is present, so don't run" << std::endl;
-                wifs.close();
-                throw exception("Before file is present, service not started");
-                return 0;
+            if (!self->EvaluateConditions()) {
+                self->SetServiceStatus(SERVICE_STOPPED);
+                throw RestartException(1, "condition failed");
             }
-        }
+
+            // If files before exist, bail.
+            for (auto before : self->m_FilesBefore) {
+                *logfile << L"before file " << before << std::endl;
+
+                wstring path = self->m_unitPath;
+
+                path.append(before);
+                wifstream wifs(path);
+                if (wifs.is_open()) {
+                    *logfile << L"before file " << before << " is present, so don't run" << std::endl;
+                    wifs.close();
+                    throw RestartException(1, "Before file is present, service not started");
+                }
+            }
 
 for (auto before : self->m_ServicesBefore) {
-       *logfile << L"before service" << before << std::endl;
+     *logfile << L"before service" << before << std::endl;
 }
 
-        for (auto after : self->m_FilesAfter) {
-            *logfile << L"after file " << after << std::endl;
+            for (auto after : self->m_FilesAfter) {
+                *logfile << L"after file " << after << std::endl;
 
-            // If files after do not exist, bail.
-            wstring path = self->m_unitPath;
-            path.append(after);
-            wifstream wifs(path);
-            if (!wifs.is_open()) {
-                *logfile << L"after file " << after << " is not present, so don't run" << std::endl;
-                throw exception("After file is not present, service not started");
-                return 0;
+                // If files after do not exist, bail.
+                wstring path = self->m_unitPath;
+                path.append(after);
+                wifstream wifs(path);
+                if (!wifs.is_open()) {
+                    *logfile << L"after file " << after << " is not present, so don't run" << std::endl;
+                    throw RestartException(1, "After file is not present, service not started");
+                }
+                wifs.close();
             }
-            wifs.close();
-        }
 
 
 for (auto after : self->m_ServicesAfter) {
-       *logfile << L"after service" << after << std::endl;
+           *logfile << L"after service" << after << std::endl;
 }
 
 *logfile << L"WaitForDependents = " << std::endl;
 
-        self->SetServiceStatus(SERVICE_START_PENDING);
-        if (!self->WaitForDependents()) {
-            *logfile << L"Failure in WaitForDepenents" << std::endl;
-            throw ERROR_SERVICE_DEPENDENCY_FAIL;
-            return 0;
-        }
-
-        // OK. We are going to launch. First resolve the environment
-
-        self->GetCurrentEnv();
-        for (auto envFile : self->m_EnvironmentFiles)
-        {
-*logfile << L"Set up environment file " << envFile << std::endl;
-            self->LoadEnvVarsFromFile(envFile);
-        }
-
-        for (auto envFile : self->m_EnvironmentFilesPS)
-        {
-*logfile << L"Set up pwsh environment file " << envFile << std::endl;
-            self->LoadPShellEnvVarsFromFile(envFile);
-        }
-
-        // Now we have the map, we can populate the buffer
-
-        self->m_envBuf = L"";
-        for(auto this_pair : self->m_Env) {
-            self->m_envBuf.append(this_pair.first);
-            self->m_envBuf.append(L"=");
-            self->m_envBuf.append(this_pair.second);
-            self->m_envBuf.push_back(L'\0');
-*logfile << L"env: " << this_pair.first << "=" << this_pair.second << std::endl;
-        }
-        self->m_envBuf.push_back(L'\0');
-
-        self->SetServiceStatus(SERVICE_RUNNING);
-        if (!self->m_ExecStartPreCmdLine.empty())
-        {
-            wostringstream os;
-            for( int i = 0;  i < self->m_ExecStartPreCmdLine.size(); i++ ) {
-                auto ws = self->m_ExecStartPreCmdLine[i];
-                *logfile << L"Running ExecStartPre command: " << ws.c_str();
-                  // to do, add special char processing
-                try {
-                    self->StartProcess(ws.c_str(), 0, true); 
-                }
-                catch(...) {
-                     if (!(self->m_ExecStartPreFlags[i] & EXECFLAG_IGNORE_FAIL)) {
-                        *logfile << L"Error in ExecStartPre command: " << ws.c_str() << "exiting" << std::endl;
-                     }
-                }
+            self->SetServiceStatus(SERVICE_START_PENDING);
+            if (!self->WaitForDependents()) {
+                *logfile << L"Failure in WaitForDepenents" << std::endl;
+                throw RestartException(1068, "dependents failed");
             }
-        }
 
-*logfile << L"starting cmd " << self->m_ExecStartCmdLine.c_str() << std::endl;
-        exitCode = 0;
-        self->SetServiceStatus(SERVICE_RUNNING);
-        self->m_IsStopping = FALSE;
-    
-        *logfile << L"Starting service: " << self->m_ServiceName << std::endl;
-    
-    *logfile << L"starting cmd " << self->m_ExecStartCmdLine.c_str() << std::endl;
-    
-        PROCESS_INFORMATION processInformation;
-        if (!self->m_ExecStartCmdLine.empty()) {
-            processInformation = self->StartProcess(self->m_ExecStartCmdLine.c_str(), 0, false);
-            self->m_dwProcessId = processInformation.dwProcessId;
-    
-    *logfile << "waitfor main process " << std::endl;
-           ::WaitForSingleObject(processInformation.hProcess, INFINITE);
-    
-            BOOL result = ::GetExitCodeProcess(processInformation.hProcess, &exitCode);
-            ::CloseHandle(processInformation.hProcess);
-    
-            if (!result || exitCode)
+            PROCESS_INFORMATION processInformation;
+            exitCode = 0;
+
+            // OK. We are going to launch. First resolve the environment
+
+            self->GetCurrentEnv();
+            for (auto envFile : self->m_EnvironmentFiles)
+            {
+*logfile << L"Set up environment file " << envFile << std::endl;
+                self->LoadEnvVarsFromFile(envFile);
+            }
+
+            for (auto envFile : self->m_EnvironmentFilesPS)
+            {
+*logfile << L"Set up pwsh environment file " << envFile << std::endl;
+                self->LoadPShellEnvVarsFromFile(envFile);
+            }
+
+            // Now we have the map, we can populate the buffer
+
+            self->m_envBuf = L"";
+            for(auto this_pair : self->m_Env) {
+                self->m_envBuf.append(this_pair.first);
+                self->m_envBuf.append(L"=");
+                self->m_envBuf.append(this_pair.second);
+                self->m_envBuf.push_back(L'\0');
+*logfile << L"env: " << this_pair.first << "=" << this_pair.second << std::endl;
+            }
+            self->m_envBuf.push_back(L'\0');
+
+            self->SetServiceStatus(SERVICE_RUNNING);
+            if (!self->m_ExecStartPreCmdLine.empty())
             {
                 wostringstream os;
-                if (!result) {
-                    *logfile << L"GetExitCodeProcess failed" << std::endl;
-                }
-                else {
-                    *logfile << L"Command \"" << self->m_ExecStartCmdLine 
-		             << L"\" failed with exit code: " << exitCode << std::endl;
-                }
-            }
-        }
-    
-        if (!self->m_ExecStartPostCmdLine.empty())
-        {
-            wostringstream os;
-
-            for( int i = 0;  i < self->m_ExecStartPostCmdLine.size(); i++ ) {
-                auto ws = self->m_ExecStartPostCmdLine[i];
-                os << L"Running ExecStartPost command: " << ws.c_str();
-                *logfile << os.str() << std::endl;
-                try {
-                    self->StartProcess(ws.c_str(), 0, true);
-                }
-                catch(...) {
-                    if (!(self->m_ExecStartPreFlags[i] & EXECFLAG_IGNORE_FAIL)) {
-                        *logfile << L"Error in ExecStartPre command: " << ws.c_str() << "exiting" << std::endl;
+                for( int i = 0;  i < self->m_ExecStartPreCmdLine.size(); i++ ) {
+                    auto ws = self->m_ExecStartPreCmdLine[i];
+                    *logfile << L"Running ExecStartPre command: " << ws.c_str();
+                      // to do, add special char processing
+                    try {
+                        processInformation = self->StartProcess(ws.c_str(), 0, true); 
+                    }
+                    catch(RestartException &ex) {
+                         if (!(self->m_ExecStartPreFlags[i] & EXECFLAG_IGNORE_FAIL)) {
+                            *logfile << L"Error in ExecStartPre command: " << ws.c_str() << "exiting" << std::endl;
+                            throw ex;
+                         }
                     }
                 }
             }
+
+*logfile << L"starting cmd " << self->m_ExecStartCmdLine.c_str() << std::endl;
+            self->SetServiceStatus(SERVICE_RUNNING);
+            self->m_IsStopping = FALSE;
+        
+            *logfile << L"Starting service: " << self->m_ServiceName << std::endl;
+        
+        *logfile << L"starting cmd " << self->m_ExecStartCmdLine.c_str() << std::endl;
+        
+            if (!self->m_ExecStartCmdLine.empty()) {
+                processInformation = self->StartProcess(self->m_ExecStartCmdLine.c_str(), 0, false);
+                self->m_dwProcessId = processInformation.dwProcessId;
+        
+        *logfile << "waitfor main process " << std::endl;
+               ::WaitForSingleObject(processInformation.hProcess, INFINITE);
+        
+                BOOL result = ::GetExitCodeProcess(processInformation.hProcess, &exitCode);
+                ::CloseHandle(processInformation.hProcess);
+        
+                if (!result || exitCode)
+                {
+                    wostringstream os;
+                    if (!result) {
+                        *logfile << L"GetExitCodeProcess failed" << std::endl;
+                    }
+                    else {
+                        *logfile << L"Command \"" << self->m_ExecStartCmdLine 
+		             << L"\" failed with exit code: " << exitCode << std::endl;
+                        throw RestartException(exitCode, "start command failed");
+                    }
+                }
+            }
+        
+            if (!self->m_ExecStartPostCmdLine.empty())
+            {
+                wostringstream os;
+
+                for( int i = 0;  i < self->m_ExecStartPostCmdLine.size(); i++ ) {
+                    auto ws = self->m_ExecStartPostCmdLine[i];
+                    os << L"Running ExecStartPost command: " << ws.c_str();
+                    *logfile << os.str() << std::endl;
+                    try {
+                        self->StartProcess(ws.c_str(), 0, true);
+                    }
+                    catch(RestartException &ex) {
+                        if (!(self->m_ExecStartPreFlags[i] & EXECFLAG_IGNORE_FAIL)) {
+                            *logfile << L"Error in ExecStartPre command: " << ws.c_str() << "exiting" << std::endl;
+                            throw ex;
+                        }
+                    }
+                }
+            }
+            *logfile << "process success " << self->m_ExecStartCmdLine << std::endl;
+            throw RestartException(0, "success");
+
+	}
+	catch (RestartException &ex) {
+    
+            self->SetServiceStatus(SERVICE_STOP_PENDING);
+            switch ( self->m_RestartAction ) {
+            default:
+            case RESTART_ACTION_NO:
+                done = true;
+                break;
+        
+            case RESTART_ACTION_ALWAYS:
+                done = false; 
+                *logfile << L"Restart always in " << self->m_RestartMillis << L" milliseconds" << std::endl;
+                ::SleepEx(self->m_RestartMillis, FALSE);
+                *logfile << L"Restart always" << std::endl;
+                break;
+    
+            case RESTART_ACTION_ON_SUCCESS:
+                if (ex.exitCode != S_OK) {
+                   done = true;
+                }
+                else {
+                    *logfile << L"Restart on success in " << self->m_RestartMillis << L" milliseconds" << std::endl;
+                    ::SleepEx(self->m_RestartMillis, TRUE); // But we respect restartSec.
+                }
+                break;
+    
+            case RESTART_ACTION_ON_FAILURE:
+                if (ex.exitCode != S_OK) {
+                   done = true;
+                }
+                else {
+                    *logfile << L"Restart on success in " << self->m_RestartMillis << L" milliseconds" << std::endl;
+                    ::SleepEx(self->m_RestartMillis, TRUE); // But we respect restartSec.
+                }
+                break;
+    
+            case RESTART_ACTION_ON_ABNORMAL:
+            case RESTART_ACTION_ON_ABORT:
+            case RESTART_ACTION_ON_WATCHDOG:
+                // 2do: check the exit code
+    *logfile << "Restart in " << self->m_RestartMillis << " milliseconds" << std::endl;
+                ::SleepEx(self->m_RestartMillis, TRUE); // But we respect restartSec.
+                break;
+            }    
         }
-
-        self->SetServiceStatus(SERVICE_STOP_PENDING);
-
-    *logfile << "process success " << self->m_ExecStartCmdLine << std::endl;
-    
-        switch ( self->m_RestartAction ) {
-        default:
-        case RESTART_ACTION_NO:
-            done = true;
-            break;
-    
-        case RESTART_ACTION_ALWAYS:
-            done = false; 
-            *logfile << L"Restart always in " << self->m_RestartMillis << L" milliseconds" << std::endl;
-            ::SleepEx(self->m_RestartMillis, FALSE);
-            *logfile << L"Restart always" << std::endl;
-            break;
-
-        case RESTART_ACTION_ON_SUCCESS:
-            if (exitCode != S_OK) {
-               done = true;
-            }
-            else {
-                *logfile << L"Restart on success in " << self->m_RestartMillis << L" milliseconds" << std::endl;
-                ::SleepEx(self->m_RestartMillis, TRUE); // But we respect restartSec.
-            }
-            break;
-
-        case RESTART_ACTION_ON_FAILURE:
-            if (exitCode != S_OK) {
-               done = true;
-            }
-            else {
-                *logfile << L"Restart on success in " << self->m_RestartMillis << L" milliseconds" << std::endl;
-                ::SleepEx(self->m_RestartMillis, TRUE); // But we respect restartSec.
-            }
-            break;
-
-        case RESTART_ACTION_ON_ABNORMAL:
-        case RESTART_ACTION_ON_ABORT:
-        case RESTART_ACTION_ON_WATCHDOG:
-            // 2do: check the exit code
-*logfile << "Restart in " << self->m_RestartMillis << " milliseconds" << std::endl;
-            ::SleepEx(self->m_RestartMillis, TRUE); // But we respect restartSec.
-            break;
-        }    
-
 
         *logfile << L"done = " << done << std::endl;
     } while (!done);

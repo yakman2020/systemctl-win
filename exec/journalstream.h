@@ -124,7 +124,7 @@ public:
                  m_console.flush();
              }
              if (m_file_output && m_filehandle != INVALID_HANDLE_VALUE) {
-                  DWORD result = WriteFile(m_filehandle, m_buffer, (m_current-m_buffer)*sizeof(m_buffer[0]), NULL, NULL);
+                  DWORD result = WriteFile(m_filehandle, m_buffer, (DWORD)(m_current-m_buffer)*sizeof(m_buffer[0]), NULL, NULL);
 		  FlushFileBuffers(m_filehandle);
              }
              m_current = m_buffer;
@@ -140,7 +140,7 @@ public:
                  m_console << m_buffer;
              }
              if (m_file_output && m_filehandle != INVALID_HANDLE_VALUE) {
-                  DWORD result = WriteFile(m_filehandle, m_buffer, (m_current-m_buffer)*sizeof(m_buffer[0]), NULL, NULL);
+                  DWORD result = WriteFile(m_filehandle, m_buffer, (DWORD)(m_current-m_buffer)*sizeof(m_buffer[0]), NULL, NULL);
              }
              m_current = m_buffer;
         }
