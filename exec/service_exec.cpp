@@ -463,9 +463,17 @@ PROCESS_INFORMATION &CWrapperService::StartProcess(LPCWSTR cmdLine, DWORD proces
 
     // Read the environment every time we start, but read it once per start
 
+
     LPVOID lpEnv = NULL;
     if (!m_envBuf.empty()) {
-    wchar_t *tmpenv = (wchar_t*)m_envBuf.c_str();
+for ( wchar_t *tmpenv = (wchar_t*)m_envBuf.c_str();
+      *tmpenv && tmpenv < (wchar_t*)m_envBuf.c_str()+m_envBuf.size();
+    ) {
+    wstring this_env = tmpenv;
+*logfile << "at exec, env : " << this_env << std::endl;
+    tmpenv+= wcslen(tmpenv);
+    tmpenv++;
+}
         lpEnv = (LPVOID)m_envBuf.c_str();
     }
     
@@ -484,6 +492,7 @@ PROCESS_INFORMATION &CWrapperService::StartProcess(LPCWSTR cmdLine, DWORD proces
     DWORD tempCmdLineCount = lstrlen(cmdLine) + 1;
     LPWSTR tempCmdLine = new WCHAR[tempCmdLineCount];  //Needed since CreateProcessW may change the contents of CmdLine
     wcscpy_s(tempCmdLine, tempCmdLineCount, cmdLine);
+
 
 *logfile << "create process " << cmdLine << std::endl;
 
@@ -656,6 +665,8 @@ for (auto after : self->m_ServicesAfter) {
                 self->m_envBuf.append(this_pair.second);
                 self->m_envBuf.push_back(L'\0');
 *logfile << L"env: " << this_pair.first << "=" << this_pair.second << std::endl;
+
+                ::SetEnvironmentVariableW(this_pair.first.c_str(), this_pair.second.c_str());
             }
             self->m_envBuf.push_back(L'\0');
 

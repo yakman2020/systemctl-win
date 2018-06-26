@@ -312,6 +312,9 @@ SystemDUnit::RegisterService()
     }
     wchar_needed++; // For the trailing null
 
+wcerr << "start_dependencies.size(): " << this->start_dependencies.size() << std::endl;
+wcerr << "dep buffer chars required: " << wchar_needed << std::endl;
+
     std::wstring wdependency_list(wchar_needed, L'\0');
     wchar_t *bufp = (wchar_t*)wdependency_list.c_str();
     for (auto dependent : this->start_dependencies) {
@@ -365,7 +368,7 @@ if (!*pelem) break;
         wcmdline.str().c_str(),    // path to service's binary 
         NULL,                      // no load ordering group 
         NULL,                      // no tag identifier 
-        wdependency_list.c_str(),  // no dependencies 
+        wdependency_list.c_str(),  // dependencies 
         username.c_str(), //pcred? username.c_str(): NULL,  // LocalSystem account 
         user_password.c_str()); // pcred ? user_password.c_str() : NULL);   // no password 
  
