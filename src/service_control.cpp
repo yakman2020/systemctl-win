@@ -315,8 +315,8 @@ SystemDUnit::RegisterService()
 wcerr << "start_dependencies.size(): " << this->start_dependencies.size() << std::endl;
 wcerr << "dep buffer chars required: " << wchar_needed << std::endl;
 
-    std::wstring wdependency_list(wchar_needed, L'\0');
-    wchar_t *bufp = (wchar_t*)wdependency_list.c_str();
+    vector<wchar_t> dep_buffer(wchar_needed+10);
+    wchar_t *bufp = dep_buffer.data();
     for (auto dependent : this->start_dependencies) {
         memcpy(bufp, dependent->name.c_str(), dependent->name.size()*sizeof(wchar_t));
 	bufp += dependent->name.size();
@@ -324,11 +324,16 @@ wcerr << "dep buffer chars required: " << wchar_needed << std::endl;
     }
     *bufp++ = L'\0';
 
-for (wchar_t *pelem = (wchar_t*)wdependency_list.c_str(); pelem < wdependency_list.c_str()+wdependency_list.max_size(); ) {
+wchar_t *pelem = dep_buffer.data();
+wchar_t *plimit = pelem+dep_buffer.max_size();
+while ( pelem < plimit ) {
 wcerr << "dependent: " << pelem << std::endl;
 pelem += wcslen(pelem);	
 pelem++;
-if (!*pelem) break;
+if (!*pelem) {
+wcerr << "end of dep list" << std::endl;
+    break;
+}
 }
 
     PCREDENTIALW pcred = NULL;
@@ -368,7 +373,7 @@ if (!*pelem) break;
         wcmdline.str().c_str(),    // path to service's binary 
         NULL,                      // no load ordering group 
         NULL,                      // no tag identifier 
-        wdependency_list.c_str(),  // dependencies 
+        dep_buffer.data(),  // dependencies 
         username.c_str(), //pcred? username.c_str(): NULL,  // LocalSystem account 
         user_password.c_str()); // pcred ? user_password.c_str() : NULL);   // no password 
  
