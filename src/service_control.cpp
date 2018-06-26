@@ -290,6 +290,8 @@ SystemDUnit::RegisterService()
     std::wstring wservice_name         = this->name;
     std::wstring wservice_display_name = this->name;
 
+wcerr << "RegisterService: " << this->name << std::endl;
+
     std::wstringstream wcmdline ;
 
     AddUserServiceLogonPrivilege(); // Make sure the user can actually use the thing.

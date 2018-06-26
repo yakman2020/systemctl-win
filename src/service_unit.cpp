@@ -870,6 +870,24 @@ static boolean read_unit(wstring file_path, void *context)
     return true;
 }
 
+static boolean delete_unit(wstring file_path, void *context)
+
+{
+    wstring servicename = file_path.substr(file_path.find_last_of('\\') + 1);
+    wstring file_type = file_path.substr(file_path.find_last_of('.'));
+
+    if ((file_type.compare(L".service") == 0) ||
+        (file_type.compare(L".target") == 0) ||
+        (file_type.compare(L".timer") == 0) ||
+        (file_type.compare(L".socket") == 0)) {
+	// Delete the service
+        class SystemDUnit *punit = SystemDUnitPool::FindUnit(servicename);
+	if (punit) {
+	    punit->Mask(true);
+	}
+    }
+    return true;
+}
 
 static boolean
 enable_required_unit(wstring file_path, void *context )
@@ -934,7 +952,6 @@ SystemDUnit::Enable(boolean block)
 {
     wchar_t * buffer;
     wstring servicename = this->name;
-
 
     // Is the active dir there? If not, create it.
     wstring active_dir_path = SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH;
@@ -1017,6 +1034,7 @@ wcerr << L"w4" << std::endl;
 
     if (this->IsEnabled()) {
         // We don't error but we don't do anything
+wcerr << L"Already enabled = " << this->name << std::endl;
         return true;
     }
 
@@ -1093,6 +1111,8 @@ mask_required_unit(wstring file_path, void *context )
 
 {
     wcerr << L"mask required Unit " << file_path.c_str() << std::endl;
+    std::string filepath_A = std::string(file_path.begin(), file_path.end());
+    std::remove(filepath_A.c_str());
     return true;
 }
 
@@ -1101,6 +1121,8 @@ mask_wanted_unit(wstring file_path, void *context )
 
 {
     wcerr << L"mask wanted Unit " << file_path.c_str() << std::endl;
+    std::string filepath_A = std::string(file_path.begin(), file_path.end());
+    std::remove(filepath_A.c_str());
     return true;
 }
 
@@ -1116,6 +1138,8 @@ boolean SystemDUnit::Mask(boolean block)
     if (SystemDUnitPool::DirExists(requires_dir_path)) {
         // Enable all of the units and add to the requires list
         (void)SystemDUnitPool::Apply(requires_dir_path, mask_required_unit, (void*)this);
+        std::string filepath_A = std::string(requires_dir_path.begin(), requires_dir_path.end());
+        std::remove(filepath_A.c_str());
     }
 
     // Is there a wants directory?
@@ -1123,6 +1147,8 @@ boolean SystemDUnit::Mask(boolean block)
     if (SystemDUnitPool::DirExists(wants_dir_path)) {
         // Enable all of the units and add to the wants list
         (void)SystemDUnitPool::Apply(wants_dir_path, mask_wanted_unit, (void*)this);
+        std::string filepath_A = std::string(wants_dir_path.begin(), wants_dir_path.end());
+        std::remove(filepath_A.c_str());
     }
 
     this->UnregisterService();
@@ -1238,6 +1264,7 @@ static void register_unit(std::pair<std::wstring, class SystemDUnit *> entry)
 {
     class SystemDUnit *punit = entry.second;
 
+wcerr <<L"register unit " << punit->Name() <<std::endl;
     punit->RegisterService();
 }
 
@@ -1251,6 +1278,7 @@ static void query_register_unit(std::pair<std::wstring, class SystemDUnit *> ent
     // Is the service loaded? Load it if not
     if (punit) {
         if (!punit->IsEnabled()) {
+wcerr <<L"query register unit " << punit->Name() <<std::endl;
             punit->RegisterService();
         }
     }
@@ -1348,8 +1376,9 @@ void SystemDUnitPool::ReloadPool()
 {
     wcerr << "do daemon reload" << endl;
 
-    // 2do First clear out the pool, services and active dir
+    // 2do First clear out the pool, services and active dir and deregister the services
     //
+    (void)Apply(SystemDUnitPool::ACTIVE_UNIT_DIRECTORY_PATH.c_str(), delete_unit, (void*)this);
 
     (void)Apply(SystemDUnitPool::UNIT_DIRECTORY_PATH.c_str(), read_unit, (void*)this);
 
