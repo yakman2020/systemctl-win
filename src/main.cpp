@@ -159,14 +159,18 @@ int SystemCtrl_Cmd_Stop( boost::program_options::variables_map &vm )
     }
 
     for (wstring unitname: units) {
-        if (unitname.rfind(L".service") == string::npos) {
+        if (unitname.rfind(L".service") == string::npos &&
+            unitname.rfind(L".target")  == string::npos &&
+            unitname.rfind(L".timer")   == string::npos &&
+            unitname.rfind(L".socket")  == string::npos ) {
               unitname.append(L".service");
         }
     
+        wcerr << L"Stop service " << unitname << std::endl;
         class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
         if (!unit) {
             // Complain and exit
-            wcerr << "Failed to enable unit: Unit file " << unitname.c_str() << "does not exist\n";
+            wcerr << "Failed to stop service: Unit file " << unitname.c_str() << "does not exist\n";
             wcerr << usage.c_str();
             exit(1);
         }
@@ -453,9 +457,14 @@ int SystemCtrl_Cmd_Mask( boost::program_options::variables_map &vm )
     }
 
     for (wstring unitname: units) {
-        if (unitname.rfind(L".service") == string::npos) {
-              unitname.append(L".service");
+        if (unitname.rfind(L".service") == string::npos &&
+            unitname.rfind(L".target")  == string::npos &&
+            unitname.rfind(L".timer")   == string::npos &&
+            unitname.rfind(L".socket")  == string::npos ) {
+            unitname.append(L".service");
         }
+
+wcerr << L"Mask unit " << unitname << std::endl;
     
         class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
         if (!unit) {

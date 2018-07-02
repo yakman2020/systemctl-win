@@ -48,11 +48,11 @@ public:
 
    static wstring UNIT_DIRECTORY_PATH;        // Quasi constant inited in contructor
    static wstring SERVICE_WRAPPER_PATH; // Single instance for everybody
+   static boolean DirExists(wstring dir_path);
+   static boolean Apply(wstring dir_path, boolean (*action)(wstring dir_path, void *context ), void *context);
 
 private:
    friend class SystemDUnit;
-   static boolean DirExists(wstring dir_path);
-   static boolean Apply(wstring dir_path, boolean (*action)(wstring dir_path, void *context ), void *context);
    static wstring ACTIVE_UNIT_DIRECTORY_PATH; // Quasi constant
    static wstring UNIT_WORKING_DIRECTORY_PATH; // Quasi constant
    static std::map<std::wstring, class SystemDUnit *> pool;
@@ -164,7 +164,6 @@ public:
         };
     ~SystemDUnit() {  };
 
-  
     boolean Enable(boolean block);
     boolean Disable(boolean block);
     boolean Mask(boolean block);
@@ -213,7 +212,7 @@ public:
                  };
     vector<wstring>&GetAfter() { return after; };
 
-    void AddRequire(wstring servicename) { 
+    void AddRequired(wstring servicename) { 
                      requires.push_back(servicename);
                  };
 

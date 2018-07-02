@@ -22,6 +22,8 @@ under the License.
 #endif
 #include <string>
 #include <sstream>
+#include <locale>
+#include <codecvt>
 #include <map>
 #include <vector>
 #include <exception>
@@ -126,7 +128,7 @@ protected:
 
     virtual void OnStart(DWORD dwArgc, PWSTR *pszArgv);
     virtual void OnStop();
-    virtual boolean WaitForDependents();
+    virtual boolean WaitForDependents(std::vector<std::wstring> &serviceList);
 
 private:
 
@@ -144,6 +146,24 @@ private:
         {
             std::stringstream ss;
             ss << msg << "exit code: " << exitCode ;
+       	    return ss.str().c_str();
+        }
+    };
+
+    struct ServiceManagerException : public std::exception
+    {
+        std::string msg;
+        DWORD exitCode;
+
+        ServiceManagerException(DWORD err, const std::wstring wstr) {
+            std::string msg = std::wstring_convert<std::codecvt_utf8<WCHAR>>().to_bytes(wstr);
+            exitCode = err;
+        }
+
+	const char * what () const throw ()
+        {
+            std::stringstream ss;
+            ss << msg << "service manager excpetion exit code: " << exitCode ;
        	    return ss.str().c_str();
         }
     };
@@ -169,6 +189,11 @@ private:
     void GetCurrentEnv();
     void LoadEnvVarsFromFile(const std::wstring& path);
     void LoadPShellEnvVarsFromFile(const std::wstring& path);
+
+    void GetServiceDependencies(); // I know that the dependent info is in the unit file (wants and requires). 
+                                 // But if the policy changes for some reason, getting the dependents is 
+                 		    // more robust than assuming that I know what is there
+    void StopServiceDependencies();
 
     static DWORD WINAPI WaitForProcessThread(LPVOID lpParam);
     void WINAPI KillProcessTree(DWORD dwProcId);
@@ -257,6 +282,8 @@ private:
     std::vector<std::wstring> m_ConditionUser;
     std::vector<std::wstring> m_ConditionGroup;
     std::vector<std::wstring> m_ConditionControlGroupController;
+
+    std::vector<std::wstring> m_Dependencies;
 
     DWORD m_dwProcessId;
     HANDLE m_hProcess;

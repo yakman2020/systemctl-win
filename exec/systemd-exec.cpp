@@ -708,7 +708,7 @@ int wmain(int argc, wchar_t *argv[])
         params.stdOut         = &unit_stdout;
         params.fCanStop       = TRUE;
         params.fCanShutdown   = TRUE;
-        params.fCanPauseContinue = FALSE;
+        params.fCanPauseContinue = TRUE;
  
         params.conditionArchitecture = args.conditionArchitecture;
         params.conditionVirtualization = args.conditionVirtualization;

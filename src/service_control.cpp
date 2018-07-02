@@ -143,9 +143,8 @@ SystemDUnit::AddUserServiceLogonPrivilege()
 
 
 boolean SystemDUnit::StartService(boolean blocking)
-{
-    // AddUserServiceLogonPrivilege();  // We do this unconditionally  we do this in enable
 
+{
     SC_HANDLE hsc = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (!hsc) {
         int last_error = GetLastError();
@@ -220,6 +219,7 @@ boolean SystemDUnit::StopService(boolean blocking)
         return false;
     }
     
+    wcerr << L"StopService(" << this->name << ") in progress" << std::endl;
     CloseServiceHandle(hsvc); 
     CloseServiceHandle(hsc);
     
@@ -415,15 +415,15 @@ boolean SystemDUnit::UnregisterService()
         return false;
     }
 
-    SC_HANDLE hsvc = OpenServiceW(hsc, this->name.c_str(), SERVICE_QUERY_STATUS);
-    {
-        wcerr << L"In unregister: OpenService failed " << GetLastError() << std::endl;
+    SC_HANDLE hsvc = OpenServiceW(hsc, this->name.c_str(), DELETE);
+    if (!hsvc) {
+        wcerr << L"In unregister: OpenService " << this->name << " failed " << GetLastError() << std::endl;
         CloseServiceHandle(hsvc);
         return false;
     }
 
     if (!DeleteService(hsvc)) {
-        wcerr << L"In unregister: DeleteService failed " << GetLastError() << std::endl;
+        wcerr << L"In unregister: DeleteService " << this->name << " failed " << GetLastError() << std::endl;
         CloseServiceHandle(hsvc);
         return false;
     }

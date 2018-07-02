@@ -233,13 +233,14 @@ for( auto envf : m_EnvironmentFilesPS ) {
     m_dwServiceThreadId = 0;
     m_hProcess   = NULL;
     m_IsStopping = FALSE;
+
+    this->GetServiceDependencies(); // This will fill the m_Dependencies list
 }
 
 CWrapperService::~CWrapperService(void)
 
 {
 *logfile << L"~CWrapperService destructor " << std::endl;
-
 
     if (m_hProcess)
     {
@@ -252,6 +253,109 @@ CWrapperService::~CWrapperService(void)
         ::CloseHandle(m_WaitForProcessThread);
         m_WaitForProcessThread = NULL;
     }
+}
+
+void
+CWrapperService::GetServiceDependencies()
+
+{
+    DWORD bytes_needed = 0;
+
+    SC_HANDLE hsc = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    if (!hsc) {
+        wostringstream os;
+        int last_error = GetLastError();
+        os << L"WaitForDependents could not open service manager win err = " << last_error << std::endl;
+	*logfile << os.str();
+        throw ServiceManagerException(last_error, os.str().c_str());
+    }
+
+    SC_HANDLE hsvc = OpenServiceW(hsc, m_ServiceName.c_str(), GENERIC_READ);
+    if (!hsvc) {
+        wostringstream os;
+        int last_error = GetLastError();
+        os << L"WaitForDependents OpeService failed " << GetLastError() << std::endl;
+	*logfile << os.str();
+        CloseServiceHandle(hsc);
+        throw ServiceManagerException(last_error, os.str().c_str());
+    }
+
+    (void)::QueryServiceConfigW( hsvc, NULL, 0, &bytes_needed);
+
+ *logfile << "bytes needed = " << bytes_needed << std::endl;
+
+    vector<char> config_buff(bytes_needed);
+    QUERY_SERVICE_CONFIGW *service_config = (QUERY_SERVICE_CONFIGW*)config_buff.data();
+
+    if (!::QueryServiceConfigW( hsvc, service_config, bytes_needed, &bytes_needed) ) {
+        wostringstream os;
+        int last_error = GetLastError();
+        os << L"WaitForDependents could not get config err = " << last_error << std::endl;
+	*logfile << os.str();
+        CloseServiceHandle(hsc);
+        throw ServiceManagerException(last_error, os.str().c_str());
+    }
+
+    *logfile << L"GetServiceDependencies = " << service_config->lpDependencies << std::endl;
+    
+    // If this is a single string we need to parse it
+    wchar_t *pdep = service_config->lpDependencies;
+    if (pdep) {
+        while (*pdep ) {
+	    this->m_Dependencies.push_back(pdep);
+	    pdep += wcslen(pdep);
+	    pdep++; // Skip the null
+*logfile << L"dep = " << this->m_Dependencies.back() << std::endl;
+        }
+	// Should leave a null at the end
+    }
+}
+
+
+
+void
+CWrapperService::StopServiceDependencies()
+
+{
+    
+    SC_HANDLE hsc = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    if (!hsc) {
+        wostringstream os;
+        int last_error = GetLastError();
+        os << L"StopServiceDependents could not open service manager win err = " << last_error << std::endl;
+	*logfile << os.str();
+        throw ServiceManagerException(last_error, os.str().c_str());
+    }
+    for (auto service: this->m_Dependencies) {
+
+	SERVICE_STATUS status = { 0 };
+
+        SC_HANDLE hsvc = OpenServiceW(hsc, m_ServiceName.c_str(), SERVICE_STOP |
+	                                                          SERVICE_QUERY_STATUS |
+								  SERVICE_ENUMERATE_DEPENDENTS);
+        if (!hsvc) {
+            wostringstream os;
+            int last_error = GetLastError();
+            os << L"StopServiceDependents OpenService of " << service << " failed: " << GetLastError() << std::endl;
+            *logfile << os.str();
+            CloseServiceHandle(hsc);
+            throw ServiceManagerException(last_error, os.str().c_str());
+        }
+
+        if (!ControlService(hsvc, SERVICE_CONTROL_STOP, &status)) {
+            int last_error = GetLastError();
+            wostringstream os;
+            os << L"StopServiceDependents ControlService of " << service << " failed: " << GetLastError() << std::endl;
+            *logfile << os.str();
+            //CloseServiceHandle(hsc);
+            //throw ServiceManagerException(last_error, os.str().c_str());
+        }
+        CloseServiceHandle(hsvc);
+    }
+    CloseServiceHandle(hsc);
+
+    // Wait For the services to stop
+    this->WaitForDependents(this->m_Dependencies);
 }
 
 
@@ -463,7 +567,6 @@ PROCESS_INFORMATION &CWrapperService::StartProcess(LPCWSTR cmdLine, DWORD proces
 
     // Read the environment every time we start, but read it once per start
 
-
     LPVOID lpEnv = NULL;
     if (!m_envBuf.empty()) {
 for ( wchar_t *tmpenv = (wchar_t*)m_envBuf.c_str();
@@ -633,7 +736,7 @@ for (auto after : self->m_ServicesAfter) {
 *logfile << L"WaitForDependents = " << std::endl;
 
             self->SetServiceStatus(SERVICE_START_PENDING);
-            if (!self->WaitForDependents()) {
+            if (!self->WaitForDependents(self->m_ServicesAfter)) {
                 *logfile << L"Failure in WaitForDepenents" << std::endl;
                 throw RestartException(1068, "dependents failed");
             }
@@ -696,8 +799,6 @@ for (auto after : self->m_ServicesAfter) {
         
             *logfile << L"Starting service: " << self->m_ServiceName << std::endl;
         
-        *logfile << L"starting cmd " << self->m_ExecStartCmdLine.c_str() << std::endl;
-        
             if (!self->m_ExecStartCmdLine.empty()) {
                 processInformation = self->StartProcess(self->m_ExecStartCmdLine.c_str(), 0, false);
                 self->m_dwProcessId = processInformation.dwProcessId;
@@ -741,13 +842,15 @@ for (auto after : self->m_ServicesAfter) {
                     }
                 }
             }
+
+            // We should stay active until all of the depends are finished
+	    self->WaitForDependents(self->m_Dependencies);
             *logfile << "process success " << self->m_ExecStartCmdLine << std::endl;
             throw RestartException(0, "success");
-
 	}
 	catch (RestartException &ex) {
     
-            self->SetServiceStatus(SERVICE_STOP_PENDING);
+            self->SetServiceStatus(SERVICE_PAUSED);
             switch ( self->m_RestartAction ) {
             default:
             case RESTART_ACTION_NO:
@@ -897,7 +1000,13 @@ void CWrapperService::OnStop()
     }
 
 *logfile << L"kill stopping service " << m_ServiceName.c_str() << std::endl;
-    KillProcessTree(m_dwProcessId);
+    // KillProcessTree(m_dwProcessId);
+
+    // Stop dependent services
+    this->StopServiceDependencies();
+
+    // Wait for them to stop
+
     ::TerminateThread(m_hServiceThread, ERROR_PROCESS_ABORTED);
 *logfile << L"service thread wait for terminate " << m_ServiceName.c_str() << std::endl;
     ::WaitForSingleObject(m_hServiceThread, INFINITE);
@@ -1280,7 +1389,7 @@ CWrapperService::EvalConditionControlGroupController(std::wstring arg)
 
 
 boolean
-CWrapperService::WaitForDependents() 
+CWrapperService::WaitForDependents(std::vector<std::wstring> &serviceList)
 
 {
     int count = 0;
@@ -1294,7 +1403,7 @@ CWrapperService::WaitForDependents()
     boolean done = false;
     do {
         done = true;
-        for (auto service : m_ServicesAfter) {
+        for (auto service : serviceList) {
             SERVICE_STATUS service_status = {0};
             SC_HANDLE hsvc = OpenServiceW(hsc, service.c_str(), GENERIC_READ);
             if (!hsvc) {
@@ -1323,7 +1432,7 @@ CWrapperService::WaitForDependents()
         }
 
         if (!done) {
-             Sleep(1000); // sleep for 0.1 sec as we check
+             Sleep(1000); // sleep for 1 sec as we check
         }
         count++;
     } while(!done && count < 500 );
