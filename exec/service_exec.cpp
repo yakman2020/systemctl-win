@@ -662,7 +662,7 @@ void CWrapperService::OnStart(DWORD dwArgc, LPWSTR *lpszArgv)
         // Spawn Service Thread
         m_hServiceThread = CreateThread( 
                 NULL,                   // default security attributes
-                1024*1024*1024,         // use 1gb  stack size  
+                1024*1024*128,         // use 128M stack size  
                 ServiceThread,          // thread function name
                 this,                   // argument to thread function 
                 0,                      // use default creation flags 

@@ -370,7 +370,7 @@ wcerr << "end of dep list" << std::endl;
         wservice_display_name.c_str(),     // service name to display 
         SERVICE_ALL_ACCESS,        // desired access 
         SERVICE_WIN32_OWN_PROCESS, // service type 
-        SERVICE_DEMAND_START,      // start type 
+        SERVICE_AUTO_START,      // start type 
         SERVICE_ERROR_NORMAL,      // error control type 
         wcmdline.str().c_str(),    // path to service's binary 
         NULL,                      // no load ordering group 
