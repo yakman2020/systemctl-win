@@ -29,27 +29,107 @@ using namespace std;
 wstring SystemDUnit::SERVICE_WRAPPER = L"systemd-exec.exe";
 wstring SystemDUnitPool::SERVICE_WRAPPER_PATH;
 
+static void
+GetUserCreds(wstring &username, wstring &user_password)
+
+{
+    PCREDENTIALW pcred = NULL;
+
+    // First, we try the cred mgr
+    { //--- RETRIEVE user credentials. We need to have credentials specified for the service user otherwise we are
+      //    LocalSystem which is a bit too restrictive to be able to set stuff up.
+
+        BOOL ok = ::CredReadW (L"dcos/app", CRED_TYPE_GENERIC, 0, &pcred);
+        if (ok) {
+            user_password = wstring((wchar_t*)pcred->CredentialBlob, pcred->CredentialBlobSize / sizeof(wchar_t));
+            username = wstring(pcred->UserName); // L"wp128869010\\azureuser"; // 
+            // wcerr << L"Read username = " << username << " password= " << user_password << std::endl;
+            ::CredFree (pcred);
+            return;
+        }
+        else {
+            wcerr << L"CredRead() failed - errno -  fallback to env " << GetLastError() << std::endl;
+        }
+    }
+
+    // Not in the cred manager, we try environment variables
+
+    DWORD buff_size = 0;
+    vector<wchar_t> buf;
+    DWORD status = 0;
+    try {
+        buff_size = GetEnvironmentVariableW(L"DCOS_USERNAME", NULL, 0);
+        if (!buff_size) {
+            // Throw something
+            throw std::exception("env var DCOS_USERNAME not present in AddUserServiceLogonPrivilege");
+        }
+        buf = vector<wchar_t>(buff_size);
+        status = GetEnvironmentVariableW(L"DCOS_USERNAME", buf.data(), buff_size);
+        if (!status) {
+            // Throw something
+            throw std::exception("env var DCOS_USERNAME not present in AddUserServiceLogonPrivilege*2");
+        }
+        username = buf.data();
+    }
+    catch( std::exception &e ) {
+        string cmsg = e.what();
+        wstring msg = wstring(cmsg.begin(), cmsg.end());
+        wcerr << msg << std::endl;
+        
+        // No env var there. We fall back and try to use what we have
+        buff_size = GetEnvironmentVariableW(L"USERDOMAIN", buf.data(), buff_size);
+        if (!buff_size) {
+             // Throw something
+            throw std::exception("env var USERDOMAIN not present in AddUserServiceLogonPrivilege");
+        }
+        buf = vector<wchar_t>(buff_size);
+        status = GetEnvironmentVariableW(L"USERDOMAIN", buf.data(), buff_size);
+        username = buf.data();
+        buff_size = GetEnvironmentVariableW(L"USERNAME", buf.data(), buff_size);
+        if (!buff_size) {
+             // Throw something
+            throw std::exception("env var USERNAME not present in AddUserServiceLogonPrivilege*2");
+        }
+        buf = vector<wchar_t>(buff_size);
+        status = GetEnvironmentVariableW(L"USERNAME", buf.data(), buff_size);
+        username.append(L"\\");
+        username.append(buf.data());
+    }
+
+    try {
+        buff_size = GetEnvironmentVariableW(L"DCOS_PASSWORD", NULL, 0);
+        if (!buff_size) {
+            // Throw something
+            throw std::exception("env var DCOS_PASSWORD not present in AddUserServiceLogonPrivilege");
+        }
+        buf = vector<wchar_t>(buff_size);
+        status = GetEnvironmentVariableW(L"DCOS_PASSWORD", buf.data(), buff_size);
+        if (!status) {
+            // Throw something
+            throw std::exception("env var DCOS_PASSWORD not present in AddUserServiceLogonPrivilege*2");
+        }
+        user_password = buf.data();
+    }
+    catch( std::exception &e ) {
+        string cmsg = e.what();
+        wstring msg = wstring(cmsg.begin(), cmsg.end());
+        wcerr << msg << std::endl;
+        user_password = L""; // It is possible we actually don't have a password for this service account if it is 
+                             // a managed service account
+    }
+}
+
+
 void
 SystemDUnit::AddUserServiceLogonPrivilege()
 
 {
-    PCREDENTIALW pcred = NULL;
     wstring username;
+    wstring password; // ignored 
 
-    {
-        //--- RETRIEVE user credentials we need the username in order to get the SID
-
-        BOOL ok = ::CredReadW (L"dcos/app", CRED_TYPE_GENERIC, 0, &pcred);
-        if (!ok) {
-            wcerr << L"CredRead() failed in AddUserServiceLogonPriveilege - errno " << GetLastError() << std::endl;
-        }
-        else {
-            username = wstring(pcred->UserName); // L"wp128869010\\azureuser"; // 
-            wcerr << L"Read username = " << username << std::endl;
-        }
-        // must free memory allocated by CredRead()!
-        ::CredFree (pcred);
-    }
+    GetUserCreds(username, password);
+ 
+    wcerr << L"username = " << username << " password = " << password << std::endl;
 
     // Get the sid
     SID *psid;
@@ -109,13 +189,13 @@ SystemDUnit::AddUserServiceLogonPrivilege()
     // if no privs are configured.
     for (unsigned long i = 0; i < priv_count; i++ ) {
         if (pprivs && pprivs[i].Buffer) {
-	    if (se_service_logon.compare(0, pprivs[i].Length, pprivs[i].Buffer) == 0) {
+        if (se_service_logon.compare(0, pprivs[i].Length, pprivs[i].Buffer) == 0) {
                 wcerr << L"Service Logon right already present" << std::endl;
                 LsaFreeMemory(pprivs);
-		LsaClose(policy_h);
-		return;
-	    }
-	}
+        LsaClose(policy_h);
+        return;
+        }
+    }
     }
 
     LsaFreeMemory(pprivs);
@@ -132,7 +212,7 @@ SystemDUnit::AddUserServiceLogonPrivilege()
                                   1);
     if (status) {
         wcerr << L"LsaAddAccountRights() failed in AddUserServiceLogonPrivilege - errno " << status << std::endl;
-	LsaClose(policy_h);
+    LsaClose(policy_h);
         return;
     }
 
@@ -321,8 +401,8 @@ wcerr << "dep buffer chars required: " << wchar_needed << std::endl;
     wchar_t *bufp = dep_buffer.data();
     for (auto dependent : this->start_dependencies) {
         memcpy(bufp, dependent->name.c_str(), dependent->name.size()*sizeof(wchar_t));
-	bufp += dependent->name.size();
-	*bufp++ = L'\0';
+    bufp += dependent->name.size();
+    *bufp++ = L'\0';
     }
     *bufp++ = L'\0';
 
@@ -330,7 +410,7 @@ wchar_t *pelem = dep_buffer.data();
 wchar_t *plimit = pelem+dep_buffer.max_size();
 while ( pelem < plimit ) {
 wcerr << "dependent: " << pelem << std::endl;
-pelem += wcslen(pelem);	
+pelem += wcslen(pelem);    
 pelem++;
 if (!*pelem) {
 wcerr << "end of dep list" << std::endl;
@@ -338,24 +418,10 @@ wcerr << "end of dep list" << std::endl;
 }
 }
 
-    PCREDENTIALW pcred = NULL;
     wstring username;
     wstring user_password;
-    { //--- RETRIEVE user credentials. We need to have credentials specified for the service user otherwise we are
-      //    LocalSystem which is a bit too restrictive to be able to set stuff up.
 
-        BOOL ok = ::CredReadW (L"dcos/app", CRED_TYPE_GENERIC, 0, &pcred);
-        if (!ok) {
-            wcerr << L"CredRead() failed - errno " << GetLastError() << std::endl;
-        }
-        else {
-            user_password = wstring((wchar_t*)pcred->CredentialBlob, pcred->CredentialBlobSize / sizeof(wchar_t));
-            username = wstring(pcred->UserName); // L"wp128869010\\azureuser"; // 
-            // wcerr << L"Read username = " << username << " password= " << user_password << std::endl;
-        }
-        // must free memory allocated by CredRead()!
-        ::CredFree (pcred);
-    }
+    GetUserCreds(username, user_password);
 
     SC_HANDLE hsc = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (!hsc) {
@@ -390,11 +456,11 @@ wcerr << "end of dep list" << std::endl;
 
     SERVICE_STATUS svc_stat = {0};
 
-    for (int retries = 0; retries < 5; retries++ ) {
-        if (QueryServiceStatus(hsvc, &svc_stat)) {
-            wcerr << L"QueryServiceStatus succeed" << std::endl; 
-	    break;
-	}
+        for (int retries = 0; retries < 5; retries++ ) {
+            if (QueryServiceStatus(hsvc, &svc_stat)) {
+                wcerr << L"QueryServiceStatus succeed" << std::endl; 
+            break;
+        }
         wcerr << L"QueryServiceStatus failed " << GetLastError() << std::endl; 
     }
 
