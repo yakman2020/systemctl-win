@@ -348,7 +348,7 @@ int SystemCtrl_Cmd_Enable( boost::program_options::variables_map &vm )
             if (!unit) {
                 // Complain and exit
                 wcerr << "Failed to load unit: Unit file " << service_unit_path.c_str() << "is invalid\n";
-                return false;       
+                return -1;       
            }
         }
         unit->Enable(false); // We will add non-blocking later
@@ -852,7 +852,7 @@ void ParseArgs(int argc, wchar_t *argv[])
 
         if (result) {
             std::wstringstream msg;
-            msg << "the command " << cmd << " is not implemented";
+            msg << "the command " << cmd << " failed. code = " << result;
             std::wstring ws = msg.str();
             std::string msgstr = std::string(ws.begin(), ws.end());
 

@@ -302,15 +302,9 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
 
             wstring value_list = values[i]; 
             int end = 0;
-            for (auto start = 0; start != std::string::npos; start = end) {
+            for (auto start = 0; end != std::string::npos; start = end+1) {
                 end = value_list.find_first_of(' ', start);
-
-                if (end != string::npos){
-                    this->requires.push_back(value_list.substr(start, end));
-                }
-                else {
-                    this->requires.push_back(value_list);
-                }
+                this->requires.push_back(value_list.substr(start, end));
             }
         }
         else if (attrs[i].compare(L"Requisite") == 0) {
@@ -318,14 +312,9 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
 
             wstring value_list = values[i];
             int end = 0;
-            for (auto start = 0; start != std::string::npos; start = end) {
+            for (auto start = 0; end != std::string::npos; start = end+1) {
                 end = value_list.find_first_of(' ', start);
-                if (end != string::npos){
-                    this->requisite.push_back(value_list.substr(start, end));
-                }
-                else {
-                    this->requisite.push_back(value_list);
-                }
+                this->requisite.push_back(value_list.substr(start, end));
             }
         }
         else if (attrs[i].compare(L"Wants") == 0) {
@@ -333,14 +322,9 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
 
             wstring value_list = values[i];
             int end = 0;
-            for (auto start = 0; start != std::string::npos; start = end) {
+            for (auto start = 0; end != std::string::npos; start = end+1) {
                 end = value_list.find_first_of(' ', start);
-                if (end != string::npos){
-                    this->wants.push_back(value_list.substr(start, end));
-                }
-                else {
-                    this->wants.push_back(value_list);
-                }
+                this->wants.push_back(value_list.substr(start, end));
             }
         }
         else if (attrs[i].compare(L"BindsTo") == 0) {
@@ -350,21 +334,23 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
             wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"Conflicts") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcout << "Conflicts " << values[i].c_str() << endl;
+
+            wstring value_list = values[i];
+            int end = 0;
+            for (auto start = 0; end != std::string::npos; start = end+1) {
+                end = value_list.find_first_of(' ', start);
+                this->conflicts.push_back(value_list.substr(start, end));
+            }
         }
         else if (attrs[i].compare(L"Before") == 0) {
             wcout << "Before " << values[i].c_str() << endl;
 
             wstring value_list = values[i];
             int end = 0;
-            for (auto start = 0; start != std::string::npos; start = end) {
+            for (auto start = 0; end != std::string::npos; start = end+1) {
                 end = value_list.find_first_of(' ', start);
-                if (end != string::npos){
-                    this->before.push_back(value_list.substr(start, end));
-                }
-                else {
-                    this->before.push_back(value_list);
-                }
+                this->before.push_back(value_list.substr(start, end));
             }
         }
         else if (attrs[i].compare(L"After") == 0) {
@@ -372,14 +358,9 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
 
             wstring value_list = values[i];
             int end = 0;
-            for (auto start = 0; start != std::string::npos; start = end) {
+            for (auto start = 0; end != std::string::npos; start = end+1) {
                 end = value_list.find_first_of(' ', start);
-                if (end != string::npos){
-                    this->after.push_back(value_list.substr(start, end));
-                }
-                else {
-                    this->after.push_back(value_list);
-                }
+                this->after.push_back(value_list.substr(start, end));
             }
         }
         else if (attrs[i].compare(L"OnFailure") == 0) {

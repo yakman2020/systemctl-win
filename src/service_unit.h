@@ -309,6 +309,8 @@ private:
     vector<wstring> requisite; // Kept in order of definition
     vector<wstring> required_by; // Kept in order of definition
 
+    vector<wstring> conflicts;    // Kept in order of definition
+
     vector<wstring> exec_start_pre;  // Kept in order of definition
     vector<wstring> exec_start;      // Kept in order of definintion
     vector<wstring> exec_start_post; // Kept in order of definition
