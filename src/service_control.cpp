@@ -58,16 +58,16 @@ GetUserCreds(wstring &username, wstring &user_password)
     vector<wchar_t> buf;
     DWORD status = 0;
     try {
-        buff_size = GetEnvironmentVariableW(L"DCOS_USERNAME", NULL, 0);
+        buff_size = GetEnvironmentVariableW(L"SYSTEMD_SERVICE_USERNAME", NULL, 0);
         if (!buff_size) {
             // Throw something
-            throw std::exception("env var DCOS_USERNAME not present in AddUserServiceLogonPrivilege");
+            throw std::exception("env var SYSTEMD_SERVICE_USERNAME not present in AddUserServiceLogonPrivilege");
         }
         buf = vector<wchar_t>(buff_size);
-        status = GetEnvironmentVariableW(L"DCOS_USERNAME", buf.data(), buff_size);
+        status = GetEnvironmentVariableW(L"SYSTEMD_SERVICE_USERNAME", buf.data(), buff_size);
         if (!status) {
             // Throw something
-            throw std::exception("env var DCOS_USERNAME not present in AddUserServiceLogonPrivilege*2");
+            throw std::exception("env var SYSTEMD_SERVICE_USERNAME not present in AddUserServiceLogonPrivilege*2");
         }
         username = buf.data();
     }
@@ -97,16 +97,16 @@ GetUserCreds(wstring &username, wstring &user_password)
     }
 
     try {
-        buff_size = GetEnvironmentVariableW(L"DCOS_PASSWORD", NULL, 0);
+        buff_size = GetEnvironmentVariableW(L"SYSTEMD_SERVICE_PASSWORD", NULL, 0);
         if (!buff_size) {
             // Throw something
-            throw std::exception("env var DCOS_PASSWORD not present in AddUserServiceLogonPrivilege");
+            throw std::exception("env var SYSTEMD_SERVICE_PASSWORD not present in AddUserServiceLogonPrivilege");
         }
         buf = vector<wchar_t>(buff_size);
-        status = GetEnvironmentVariableW(L"DCOS_PASSWORD", buf.data(), buff_size);
+        status = GetEnvironmentVariableW(L"SYSTEMD_SERVICE_PASSWORD", buf.data(), buff_size);
         if (!status) {
             // Throw something
-            throw std::exception("env var DCOS_PASSWORD not present in AddUserServiceLogonPrivilege*2");
+            throw std::exception("env var SYSTEMD_SERVICE_PASSWORD not present in AddUserServiceLogonPrivilege*2");
         }
         user_password = buf.data();
     }
