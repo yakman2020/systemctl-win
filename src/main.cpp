@@ -279,7 +279,32 @@ int SystemCtrl_Cmd_Status( boost::program_options::variables_map &vm )
 
 int SystemCtrl_Cmd_Show( boost::program_options::variables_map &vm )
 {
-    return -1;
+   wstring usage = L"usage: Systemctl show [ <unitname> ]\n";
+
+   if (vm["system_units"].empty()) {
+		g_pool->ShowGlobal();
+		return 0;
+   }
+   vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    for (wstring unitname: units) {
+        if (unitname.rfind(L".service") == string::npos &&
+            unitname.rfind(L".target")  == string::npos &&
+            unitname.rfind(L".timer")   == string::npos &&
+            unitname.rfind(L".socket")  == string::npos ) {
+              unitname.append(L".service");
+        }
+    
+        wcerr << L"Show service " << unitname << std::endl;
+        class SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
+        if (!unit) {
+            // Complain and exit
+            wcerr << "Failed to show service: Unit file " << unitname.c_str() << "does not exist\n";
+            wcerr << usage.c_str();
+            exit(1);
+        }
+        unit->ShowService(); // We will add non-blocking later
+    }
+    return 0;
 }
 
 
@@ -323,14 +348,14 @@ int SystemCtrl_Cmd_Enable( boost::program_options::variables_map &vm )
 {
     wstring usage = L"usage: Systemctl enable <unitname>\n";
 
-    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
-    if (units.empty()) {
+    if (vm["system_units"].empty()) {
         // Complain and exit
         wcerr << "No unit specified\n";
          wcerr << usage.c_str();
          exit(1);
     }
 
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
     for (wstring unitname: units) {
         // We allow a shorthand reference via just the service name, but 
         // we recognise the valid file extensions if given.
@@ -364,14 +389,14 @@ int SystemCtrl_Cmd_Disable( boost::program_options::variables_map &vm )
 {
     wstring usage = L"usage: Systemctl disable <unitname>\n";
 
-    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
-    if (units.empty()) {
+    if (vm["system_units"].empty()) {
         // Complain and exit
         wcerr << "No unit specified\n";
          wcerr << usage.c_str();
          exit(1);
     }
 
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
     for (wstring unitname: units) {
         if (unitname.rfind(L".service") == string::npos) {
               unitname.append(L".service");
@@ -410,13 +435,13 @@ int SystemCtrl_Cmd_Preset_All( boost::program_options::variables_map &vm )
 
 int SystemCtrl_Cmd_Is_Enabled( boost::program_options::variables_map &vm )
 {
-    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
-    if (units.empty()) {
+    if (vm["system_units"].empty()) {
         // Complain and exit
         wcerr << "No unit specified\n";
         exit(1);
     }
-    else if (units.size() > 1) {
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    if (units.size() > 1) {
         wcerr << "One unit only\n";
         exit(2);
     }
@@ -445,13 +470,13 @@ int SystemCtrl_Cmd_Mask( boost::program_options::variables_map &vm )
 {
     wstring usage = L"usage: Systemctl mask <unitname>\n";
 
-    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
-    if (units.empty()) {
+    if (vm["system_units"].empty()) {
         // Complain and exit
         wcerr << "No unit specified\n";
         exit(1);
     }
-    else if (units.size() > 1) {
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    if (units.size() > 1) {
         wcerr << "One unit only\n";
         exit(2);
     }
@@ -483,14 +508,15 @@ int SystemCtrl_Cmd_Unmask( boost::program_options::variables_map &vm )
 {
     wstring usage = L"usage: Systemctl unmask <unitname>\n";
 
-    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
-    if (units.empty()) {
+    if (vm["system_units"].empty()) {
         // Complain and exit
         wcerr << "No unit specified\n";
         wcerr << usage.c_str();
         exit(1);
     }
-    else if (units.size() > 1) {
+
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    if (units.size() > 1) {
         wcerr << "One unit only\n";
         wcerr << usage.c_str();
         exit(2);
@@ -864,8 +890,6 @@ void ParseArgs(int argc, wchar_t *argv[])
 
 
 int wmain(int argc, wchar_t *argv[])
-
-
 { 
     try {
         g_pool->LoadPool();

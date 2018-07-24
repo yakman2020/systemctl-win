@@ -22,6 +22,49 @@
 
 using namespace std;
 
+std::wstring ServiceTypeToWString[] = {
+       L"undefined",
+       L"simple",
+       L"forking",
+       L"oneshot",
+       L"dbus",
+       L"notify",
+       L"idle"
+    };   
+
+std::wstring OutputTypeToWString[] = {
+       L"invalid",
+       L"inherit",
+       L"null",
+       L"tty",
+       L"journal",
+       L"syslog",
+       L"kmsg",
+       L"journal+console",
+       L"syslog+console",
+       L"kmsg+console",
+       L"file",
+       L"socket",
+       L"fd"
+    };   
+
+std::wstring RestartActionToWString[] = {
+         L"undefined",
+         L"no",
+         L"always",
+         L"on_success",
+         L"on_failure",
+         L"on_abnormal",
+         L"on_abort",
+         L"on_watchdog"
+    };
+
+std::wstring NotifyActionToWString[] = {
+          L"none",
+          L"main",
+          L"exec",
+          L"all"
+    };
 
 wchar_t BUFFER[MAX_BUFFER_SIZE] = { '\0' };
 
@@ -1274,6 +1317,207 @@ boolean SystemDUnit::Unmask(boolean block)
 }
 
 
+void SystemDUnit::ShowService()
+
+{
+    wcout << L"Type=" << ServiceTypeToWString[this->service_type] << std::endl;
+    wcout << L"Restart=" << RestartActionToWString[this->restart_action] << std::endl;
+    wcout << L"NotifyAccess=" << NotifyActionToWString[this->notify_access] << std::endl;
+    wcout << L"RestartUSec=" << (this->restart_sec*1000000.0 ) << std::endl;
+    wcout << L"TimeoutStartUSec=" << std::endl;
+    wcout << L"TimeoutStopUSec=" << std::endl;
+    wcout << L"RuntimeMaxUSec=" << std::endl;
+    wcout << L"WatchdogUSec=" << std::endl;
+    wcout << L"WatchdogTimestampMonotonic=" << std::endl;
+    wcout << L"PermissionsStartOnly=" << std::endl;
+    wcout << L"RootDirectoryStartOnly=" << std::endl;
+    wcout << L"RemainAfterExit=" << std::endl;
+    wcout << L"GuessMainPID=" << std::endl;
+    wcout << L"MainPID=" << std::endl;
+    wcout << L"ControlPID=" << std::endl;
+    wcout << L"FileDescriptorStoreMax=" << std::endl;
+    wcout << L"NFileDescriptorStore=" << std::endl;
+    wcout << L"StatusErrno=" << std::endl;
+    wcout << L"Result=" << std::endl;
+    wcout << L"UID=" << std::endl;
+    wcout << L"GID=" << std::endl;
+    wcout << L"NRestarts=" << std::endl;
+    wcout << L"ExecMainStartTimestampMonotonic=" << std::endl;
+    wcout << L"ExecMainExitTimestampMonotonic=" << std::endl;
+    wcout << L"ExecMainPID=" << std::endl;
+    wcout << L"ExecMainCode=" << std::endl;
+    wcout << L"ExecMainStatus=" << std::endl;
+    wcout << L"ExecStart={" ;
+    for (auto exec_start:this->exec_start) {
+       wcout << exec_start << L";" ;
+    }
+    wcout << L"}" << std::endl;
+    wcout << L"Slice=" << std::endl;
+    wcout << L"MemoryCurrent=" << std::endl;
+    wcout << L"CPUUsageNSec=" << std::endl;
+    wcout << L"TasksCurrent=" << std::endl;
+    wcout << L"IPIngressBytes=" << std::endl;
+    wcout << L"IPIngressPackets=" << std::endl;
+    wcout << L"IPEgressBytes=" << std::endl;
+    wcout << L"IPEgressPackets=" << std::endl;
+    wcout << L"Delegate=" << std::endl;
+    wcout << L"CPUAccounting=" << std::endl;
+    wcout << L"CPUWeight=" << std::endl;
+    wcout << L"StartupCPUWeight=" << std::endl;
+    wcout << L"CPUShares=" << std::endl;
+    wcout << L"StartupCPUShares=" << std::endl;
+    wcout << L"CPUQuotaPerSecUSec=" << std::endl;
+    wcout << L"IOAccounting=" << std::endl;
+    wcout << L"IOWeight=" << std::endl;
+    wcout << L"StartupIOWeight=" << std::endl;
+    wcout << L"BlockIOAccounting=" << std::endl;
+    wcout << L"BlockIOWeight=" << std::endl;
+    wcout << L"StartupBlockIOWeight=" << std::endl;
+    wcout << L"MemoryAccounting=" << std::endl;
+    wcout << L"MemoryLow=" << std::endl;
+    wcout << L"MemoryHigh=" << std::endl;
+    wcout << L"MemoryMax=" << std::endl;
+    wcout << L"MemorySwapMax=" << std::endl;
+    wcout << L"MemoryLimit=" << std::endl;
+    wcout << L"DevicePolicy=" << std::endl;
+    wcout << L"TasksAccounting=" << std::endl;
+    wcout << L"TasksMax=" << std::endl;
+    wcout << L"IPAccounting=" << std::endl;
+    wcout << L"UMask=" << std::endl;
+    wcout << L"LimitCPU=" << this->limitCPU << std::endl;
+    wcout << L"LimitCPUSoft=" << this->limitCPUSoft << std::endl;
+    wcout << L"LimitFSIZE=" << this->limitFSIZE << std::endl;
+    wcout << L"LimitFSIZESoft=" << this->limitFSIZESoft << std::endl;
+    wcout << L"LimitDATA=" << this->limitDATA << std::endl;
+    wcout << L"LimitDATASoft=" << this->limitDATASoft << std::endl;
+    wcout << L"LimitSTACK=" << this->limitSTACK << std::endl;
+    wcout << L"LimitSTACKSoft=" << this->limitSTACKSoft << std::endl;
+    wcout << L"LimitCORE=" << this->limitCORE << std::endl;
+    wcout << L"LimitCORESoft=" << this->limitCORESoft << std::endl;
+    wcout << L"LimitRSS=" << this->limitRSS << std::endl;
+    wcout << L"LimitRSSSoft=" << this->limitRSSSoft << std::endl;
+    wcout << L"LimitNOFILE=" << this->limitNOFILE << std::endl;
+    wcout << L"LimitNOFILESoft=" << this->limitNOFILESoft << std::endl;
+    wcout << L"LimitAS=" << this->limitAS << std::endl;
+    wcout << L"LimitASSoft=" << this->limitASSoft << std::endl;
+    wcout << L"LimitNPROC=" << this->limitNPROC << std::endl;
+    wcout << L"LimitNPROCSoft=" << this->limitNPROCSoft << std::endl;
+    wcout << L"LimitMEMLOCK=" << this->limitMEMLOCK << std::endl;
+    wcout << L"LimitMEMLOCKSoft=" << this->limitMEMLOCKSoft << std::endl;
+    wcout << L"LimitLOCKS=" << this->limitLOCKS << std::endl;
+    wcout << L"LimitLOCKSSoft=" << this->limitLOCKSSoft << std::endl;
+    wcout << L"LimitSIGPENDING=" << this->limitSIGPENDING << std::endl;
+    wcout << L"LimitSIGPENDINGSoft=" << this->limitSIGPENDINGSoft << std::endl;
+    wcout << L"LimitMSGQUEUE=" << this->limitMSGQUEUE << std::endl;
+    wcout << L"LimitMSGQUEUESoft=" << this->limitMSGQUEUESoft << std::endl;
+    wcout << L"LimitNICE=" << this->limitNICE << std::endl;
+    wcout << L"LimitNICESoft=" << this->limitNICESoft << std::endl;
+    wcout << L"LimitRTPRIO=" << this->limitRTPRIO << std::endl;
+    wcout << L"LimitRTPRIOSoft=" << this->limitRTPRIOSoft << std::endl;
+    wcout << L"LimitRTTIME=" << this->limitRTTIME << std::endl;
+    wcout << L"LimitRTTIMESoft=" << this->limitRTTIMESoft << std::endl;
+    wcout << L"OOMScoreAdjust=" << std::endl;
+    wcout << L"Nice=" << std::endl;
+    wcout << L"IOSchedulingClass=" << std::endl;
+    wcout << L"IOSchedulingPriority=" << std::endl;
+    wcout << L"CPUSchedulingPolicy=" << std::endl;
+    wcout << L"CPUSchedulingPriority=" << std::endl;
+    wcout << L"TimerSlackNSec=" << std::endl;
+    wcout << L"CPUSchedulingResetOnFork=" << std::endl;
+    wcout << L"NonBlocking=" << std::endl;
+    wcout << L"StandardInput=" << std::endl;
+    wcout << L"StandardInputData=" << std::endl;
+    wcout << L"StandardOutput=" << std::endl;
+    wcout << L"StandardError=" << std::endl;
+    wcout << L"TTYReset=" << std::endl;
+    wcout << L"TTYVHangup=" << std::endl;
+    wcout << L"TTYVTDisallocate=" << std::endl;
+    wcout << L"SyslogPriority=" << std::endl;
+    wcout << L"SyslogLevelPrefix=" << std::endl;
+    wcout << L"SyslogLevel=" << std::endl;
+    wcout << L"SyslogFacility=" << std::endl;
+    wcout << L"LogLevelMax=" << std::endl;
+    wcout << L"SecureBits=" << std::endl;
+    wcout << L"CapabilityBoundingSet=" << std::endl;
+    wcout << L"AmbientCapabilities=" << std::endl;
+    wcout << L"DynamicUser=" << std::endl;
+    wcout << L"RemoveIPC=" << std::endl;
+    wcout << L"MountFlags=" << std::endl;
+    wcout << L"PrivateTmp=" << std::endl;
+    wcout << L"PrivateDevices=" << std::endl;
+    wcout << L"ProtectKernelTunables=" << std::endl;
+    wcout << L"ProtectKernelModules=" << std::endl;
+    wcout << L"ProtectControlGroups=" << std::endl;
+    wcout << L"PrivateNetwork=" << std::endl;
+    wcout << L"PrivateUsers=" << std::endl;
+    wcout << L"ProtectHome=" << std::endl;
+    wcout << L"ProtectSystem=" << std::endl;
+    wcout << L"SameProcessGroup=" << std::endl;
+    wcout << L"UtmpMode=" << std::endl;
+    wcout << L"IgnoreSIGPIPE=" << std::endl;
+    wcout << L"NoNewPrivileges=" << std::endl;
+    wcout << L"SystemCallErrorNumber=" << std::endl;
+    wcout << L"LockPersonality=" << std::endl;
+    wcout << L"RuntimeDirectoryPreserve=" << std::endl;
+    wcout << L"RuntimeDirectoryMode=" << std::endl;
+    wcout << L"StateDirectoryMode=" << std::endl;
+    wcout << L"CacheDirectoryMode=" << std::endl;
+    wcout << L"LogsDirectoryMode=" << std::endl;
+    wcout << L"ConfigurationDirectoryMode=" << std::endl;
+    wcout << L"MemoryDenyWriteExecute=" << std::endl;
+    wcout << L"RestrictRealtime=" << std::endl;
+    wcout << L"RestrictNamespaces=" << std::endl;
+    wcout << L"MountAPIVFS=" << std::endl;
+    wcout << L"KeyringMode=" << std::endl;
+    wcout << L"KillMode=" << std::endl;
+    wcout << L"KillSignal=" << std::endl;
+    wcout << L"SendSIGKILL=" << std::endl;
+    wcout << L"SendSIGHUP=" << std::endl;
+    wcout << L"Id=" << std::endl;
+    wcout << L"Names=" << std::endl;
+    wcout << L"Requires=" << std::endl;
+    wcout << L"After=" << std::endl;
+    wcout << L"Documentation=" << std::endl;
+    wcout << L"Description=" << std::endl;
+    wcout << L"LoadState=" << std::endl;
+    wcout << L"ActiveState=" << std::endl;
+    wcout << L"SubState=" << std::endl;
+    wcout << L"FragmentPath=" << std::endl;
+    wcout << L"UnitFileState=" << std::endl;
+    wcout << L"UnitFilePreset=" << std::endl;
+    wcout << L"StateChangeTimestampMonotonic=" << std::endl;
+    wcout << L"InactiveExitTimestampMonotonic=" << std::endl;
+    wcout << L"ActiveEnterTimestampMonotonic=" << std::endl;
+    wcout << L"ActiveExitTimestampMonotonic=" << std::endl;
+    wcout << L"InactiveEnterTimestampMonotonic=" << std::endl;
+    wcout << L"CanStart=" << std::endl;
+    wcout << L"CanStop=" << std::endl;
+    wcout << L"CanReload=" << std::endl;
+    wcout << L"CanIsolate=" << std::endl;
+    wcout << L"StopWhenUnneeded=" << std::endl;
+    wcout << L"RefuseManualStart=" << std::endl;
+    wcout << L"RefuseManualStop=" << std::endl;
+    wcout << L"AllowIsolate=" << std::endl;
+    wcout << L"DefaultDependencies=" << std::endl;
+    wcout << L"OnFailureJobMode=" << std::endl;
+    wcout << L"IgnoreOnIsolate=" << std::endl;
+    wcout << L"NeedDaemonReload=" << std::endl;
+    wcout << L"JobTimeoutUSec=" << std::endl;
+    wcout << L"JobRunningTimeoutUSec=" << std::endl;
+    wcout << L"JobTimeoutAction=" << std::endl;
+    wcout << L"ConditionResult=" << std::endl;
+    wcout << L"AssertResult=" << std::endl;
+    wcout << L"ConditionTimestampMonotonic=" << std::endl;
+    wcout << L"AssertTimestampMonotonic=" << std::endl;
+    wcout << L"Transient=" << std::endl;
+    wcout << L"Perpetual=" << std::endl;
+    wcout << L"StartLimitIntervalUSec=" << std::endl;
+    wcout << L"StartLimitBurst=" << std::endl;
+    wcout << L"StartLimitAction=" << std::endl;
+    wcout << L"FailureAction=" << std::endl;
+    wcout << L"SuccessAction=" << std::endl;
+    wcout << L"CollectMode=" << std::endl;
+}
 
 
 static void setup_before(SystemDUnit *punit, wstring const &before) 
@@ -1398,6 +1642,85 @@ SystemDUnitPool::SystemDUnitPool()
     mypath.erase(index);
 
     SERVICE_WRAPPER_PATH = mypath; // Single instance for everybody
+
+    this->globals.Version = L"237";
+    this->globals.Features = L""; // Really dont know what goes here.... linux features are not relevant
+    this->globals.Virtualization=L"microsoft";
+    this->globals.Architecture=L"x86-64";
+    this->globals.FirmwareTimestampMonotonic=0;
+    this->globals.LoaderTimestampMonotonic=0;
+    this->globals.KernelTimestampMonotonic=0;
+    this->globals.InitRDTimestampMonotonic=0;
+    this->globals.UserspaceTimestampMonotonic=0; //35195865
+    this->globals.FinishTimestampMonotonic=0; // 219203351
+    this->globals.SecurityStartTimestampMonotonic=0; //35259798
+    this->globals.SecurityFinishTimestampMonotonic=0; //35266602
+    this->globals.GeneratorsStartTimestampMonotonic=0; //36250986
+    this->globals.GeneratorsFinishTimestampMonotonic=0; // 37395270
+    this->globals.UnitsLoadStartTimestampMonotonic=0; //37396534
+    this->globals.UnitsLoadFinishTimestampMonotonic=0; //38863767
+    this->globals.LogLevel=L"info";
+    this->globals.LogTarget=L"journal-or-kmsg";
+    this->globals.NNames=365;
+    this->globals.NFailedUnits=3;
+    this->globals.NJobs=0;
+    this->globals.NInstalledJobs=29126798;
+    this->globals.NFailedJobs=0;
+    this->globals.Progress=1;
+    this->globals.Environment = std::wstring(L"PATH=")+_wgetenv(L"PATH"); L"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+    this->globals.ConfirmSpawn=false;
+    this->globals.ShowStatus=true;
+    this->globals.UnitPath=UNIT_DIRECTORY_PATH; // L"/etc/systemd/system.control /run/systemd/system.control /run/systemd/transient /etc/systemd/system /run/systemd/system /run/systemd/generator /lib/systemd/system /run/systemd/generator.late";
+    this->globals.DefaultStandardOutput=L"journal";
+    this->globals.DefaultStandardError=L"journal";
+    this->globals.RuntimeWatchdogUSec=std::chrono::duration<__int64, std::micro>(0);
+    this->globals.ShutdownWatchdogUSec=std::chrono::duration<__int64, std::micro>(10*60*1000*1000); //10min
+    this->globals.ServiceWatchdogs=true;
+    this->globals.SystemState=L"degraded";
+    this->globals.DefaultTimerAccuracyUSec=std::chrono::duration<__int64, std::micro>(60*1000*1000); //1min
+    this->globals.DefaultTimeoutStartUSec=std::chrono::duration<__int64, std::micro>(90*1000*1000); // 1min 30s
+    this->globals.DefaultTimeoutStopUSec=std::chrono::duration<__int64, std::micro>(90*1000*1000); // 1min 30s
+    this->globals.DefaultRestartUSec=std::chrono::duration<__int64, std::micro>(100*1000);
+    this->globals.DefaultStartLimitIntervalUSec=std::chrono::duration<__int64, std::micro>(10*1000*1000); //10s
+    this->globals.DefaultStartLimitBurst=5;
+    this->globals.DefaultCPUAccounting=false;
+    this->globals.DefaultBlockIOAccounting=false;
+    this->globals.DefaultMemoryAccounting=false;
+    this->globals.DefaultTasksAccounting=true;
+    this->globals.DefaultLimitCPU=-1; //infinity;
+    this->globals.DefaultLimitCPUSoft=-1; //infinity
+    this->globals.DefaultLimitFSIZE=-1; //infinity
+    this->globals.DefaultLimitFSIZESoft=-1; //infinity
+    this->globals.DefaultLimitDATA=-1; // infinity
+    this->globals.DefaultLimitDATASoft=-1; // infinity
+    this->globals.DefaultLimitSTACK=-1; // infinity
+    this->globals.DefaultLimitSTACKSoft=8388608;
+    this->globals.DefaultLimitCORE=-1; // infinity
+    this->globals.DefaultLimitCORESoft=0;
+    this->globals.DefaultLimitRSS=-1; // infinity
+    this->globals.DefaultLimitRSSSoft=-1; // infinity
+    this->globals.DefaultLimitNOFILE=4096;
+    this->globals.DefaultLimitNOFILESoft=1024;
+    this->globals.DefaultLimitAS=-1; // infinity
+    this->globals.DefaultLimitASSoft=-1; // infinity
+    this->globals.DefaultLimitNPROC=108066;
+    this->globals.DefaultLimitNPROCSoft=108066;
+    this->globals.DefaultLimitMEMLOCK=16777216;
+    this->globals.DefaultLimitMEMLOCKSoft=16777216;
+    this->globals.DefaultLimitLOCKS=-1;     //infinity
+    this->globals.DefaultLimitLOCKSSoft=-1; //infinity
+    this->globals.DefaultLimitSIGPENDING=108066;
+    this->globals.DefaultLimitSIGPENDINGSoft=108066;
+    this->globals.DefaultLimitMSGQUEUE=819200;
+    this->globals.DefaultLimitMSGQUEUESoft=819200;
+    this->globals.DefaultLimitNICE=0;
+    this->globals.DefaultLimitNICESoft=0;
+    this->globals.DefaultLimitRTPRIO=0;
+    this->globals.DefaultLimitRTPRIOSoft=0;
+    this->globals.DefaultLimitRTTIME=-1; //infinity
+    this->globals.DefaultLimitRTTIMESoft=-1; //infinity
+    this->globals.DefaultTasksMax=32419;
+    this->globals.TimerSlackNSec=50000;
 }
 
 void SystemDUnitPool::ReloadPool()
@@ -1434,6 +1757,97 @@ wcerr << L"key = " << member.first << "value = " << member.second->Name() << std
      for_each(g_pool->pool.begin(), g_pool->pool.end(), query_register_unit);
 }
 
+
+void SystemDUnitPool::ShowGlobal()
+{
+    wcout << L"Version=" << g_pool->globals.Version << std::endl;
+    wcout << L"Features=" << g_pool->globals.Features << std::endl;
+    wcout << L"Virtualization=" << g_pool->globals.Virtualization << std::endl;
+    wcout << L"Architecture=" << g_pool->globals.Architecture << std::endl;
+    wcout << L"FirmwareTimestampMonotonic=" << g_pool->globals.FirmwareTimestampMonotonic << std::endl;
+    wcout << L"LoaderTimestampMonotonic="  << g_pool->globals.LoaderTimestampMonotonic << std::endl;
+    wcout << L"KernelTimestamp=" << std::endl;
+    wcout << L"KernelTimestampMonotonic=" << g_pool->globals.KernelTimestampMonotonic << std::endl;
+    wcout << L"InitRDTimestampMonotonic=" << g_pool->globals.InitRDTimestampMonotonic << std::endl;
+    wcout << L"UserspaceTimestamp=" << std::endl;
+    wcout << L"UserspaceTimestampMonotonic=" << g_pool->globals.UserspaceTimestampMonotonic << std::endl;
+    wcout << L"FinishTimestamp=" << std::endl;
+    wcout << L"FinishTimestampMonotonic=" << g_pool->globals.FinishTimestampMonotonic << std::endl;
+    wcout << L"SecurityStartTimestamp=" << std::endl;
+    wcout << L"SecurityStartTimestampMonotonic=" << g_pool->globals.SecurityStartTimestampMonotonic << std::endl;
+    wcout << L"SecurityFinishTimestamp=" << std::endl;
+    wcout << L"SecurityFinishTimestampMonotonic=" << g_pool->globals.SecurityFinishTimestampMonotonic << std::endl;
+    wcout << L"GeneratorsStartTimestamp=" << std::endl;
+    wcout << L"GeneratorsStartTimestampMonotonic=" << g_pool->globals.GeneratorsStartTimestampMonotonic << std::endl;
+    wcout << L"GeneratorsFinishTimestamp=" << std::endl;
+    wcout << L"GeneratorsFinishTimestampMonotonic=" << g_pool->globals.GeneratorsFinishTimestampMonotonic << std::endl;
+    wcout << L"UnitsLoadStartTimestamp=" << std::endl;
+    wcout << L"UnitsLoadStartTimestampMonotonic=" << g_pool->globals.UnitsLoadStartTimestampMonotonic << std::endl;
+    wcout << L"UnitsLoadFinishTimestamp=" << std::endl;
+    wcout << L"UnitsLoadFinishTimestampMonotonic=" << g_pool->globals.UnitsLoadFinishTimestampMonotonic << std::endl;
+    wcout << L"LogLevel=" << g_pool->globals.LogLevel << std::endl;
+    wcout << L"LogTarget=" << g_pool->globals.LogTarget << std::endl;
+    wcout << L"NNames=" << g_pool->globals.NNames << std::endl;
+    wcout << L"NFailedUnits=" << g_pool->globals.NFailedUnits << std::endl;
+    wcout << L"NJobs=" << g_pool->globals.NJobs << std::endl;
+    wcout << L"NInstalledJobs=" << g_pool->globals.NInstalledJobs << std::endl;
+    wcout << L"NFailedJobs=" << g_pool->globals.NFailedJobs << std::endl;
+    wcout << L"Progress=" << g_pool->globals.Progress << std::endl;
+    wcout << L"Environment=" << g_pool->globals.Environment  << std::endl;
+    wcout << L"ConfirmSpawn=" << g_pool->globals.ConfirmSpawn << std::endl;
+    wcout << L"ShowStatus=" << g_pool->globals.ShowStatus << std::endl;
+    wcout << L"UnitPath=" << g_pool->globals.UnitPath << std::endl;
+    wcout << L"DefaultStandardOutput=" << g_pool->globals.DefaultStandardOutput << std::endl;
+    wcout << L"DefaultStandardError=" << g_pool->globals.DefaultStandardError << std::endl;
+    wcout << L"RuntimeWatchdogUSec=" << std::chrono::duration_cast<std::chrono::microseconds>(g_pool->globals.RuntimeWatchdogUSec).count() << std::endl;
+    wcout << L"ShutdownWatchdogUSec=" << std::chrono::duration_cast<std::chrono::microseconds>(g_pool->globals.ShutdownWatchdogUSec).count() << std::endl;
+    wcout << L"ServiceWatchdogs=" << g_pool->globals.ServiceWatchdogs << std::endl;
+    wcout << L"SystemState=" << g_pool->globals.SystemState << std::endl;
+    wcout << L"DefaultTimerAccuracyUSec=" << std::chrono::duration_cast<std::chrono::microseconds>(g_pool->globals.DefaultTimerAccuracyUSec).count() << std::endl;
+    wcout << L"DefaultTimeoutStartUSec=" << std::chrono::duration_cast<std::chrono::microseconds>(g_pool->globals.DefaultTimeoutStartUSec).count() << std::endl;
+    wcout << L"DefaultTimeoutStopUSec=" << std::chrono::duration_cast<std::chrono::microseconds>(g_pool->globals.DefaultTimeoutStopUSec).count() << std::endl;
+    wcout << L"DefaultRestartUSec=" << std::chrono::duration_cast<std::chrono::microseconds>(g_pool->globals.DefaultRestartUSec).count() << std::endl;
+    wcout << L"DefaultStartLimitIntervalUSec=" << std::chrono::duration_cast<std::chrono::microseconds>(g_pool->globals.DefaultStartLimitIntervalUSec).count() << std::endl;
+    wcout << L"DefaultStartLimitBurst=" << g_pool->globals.DefaultStartLimitBurst << std::endl;
+    wcout << L"DefaultCPUAccounting=" << g_pool->globals.DefaultCPUAccounting << std::endl;
+    wcout << L"DefaultBlockIOAccounting=" << g_pool->globals.DefaultBlockIOAccounting << std::endl;
+    wcout << L"DefaultMemoryAccounting=" << g_pool->globals.DefaultMemoryAccounting << std::endl;
+    wcout << L"DefaultTasksAccounting=" << g_pool->globals.DefaultTasksAccounting << std::endl;
+    wcout << L"DefaultLimitCPU=" << g_pool->globals.DefaultLimitCPU << std::endl;
+    wcout << L"DefaultLimitCPUSoft=" << g_pool->globals.DefaultLimitCPUSoft << std::endl;
+    wcout << L"DefaultLimitFSIZE=" << g_pool->globals.DefaultLimitFSIZE << std::endl;
+    wcout << L"DefaultLimitFSIZESoft=" << g_pool->globals.DefaultLimitFSIZESoft << std::endl;
+    wcout << L"DefaultLimitDATA=" << g_pool->globals.DefaultLimitDATA << std::endl;
+    wcout << L"DefaultLimitDATASoft=" << g_pool->globals.DefaultLimitDATASoft << std::endl;
+    wcout << L"DefaultLimitSTACK=" << g_pool->globals.DefaultLimitSTACK << std::endl;
+    wcout << L"DefaultLimitSTACKSoft=" << g_pool->globals.DefaultLimitSTACKSoft << std::endl;
+    wcout << L"DefaultLimitCORE=" << g_pool->globals.DefaultLimitCORE << std::endl;
+    wcout << L"DefaultLimitCORESoft=" << g_pool->globals.DefaultLimitCORESoft << std::endl;
+    wcout << L"DefaultLimitRSS=" << g_pool->globals.DefaultLimitRSS << std::endl;
+    wcout << L"DefaultLimitRSSSoft=" << g_pool->globals.DefaultLimitRSSSoft << std::endl;
+    wcout << L"DefaultLimitNOFILE=" << g_pool->globals.DefaultLimitNOFILE << std::endl;
+    wcout << L"DefaultLimitNOFILESoft=" << g_pool->globals.DefaultLimitNOFILESoft << std::endl;
+    wcout << L"DefaultLimitAS=" << g_pool->globals.DefaultLimitAS << std::endl;
+    wcout << L"DefaultLimitASSoft=" << g_pool->globals.DefaultLimitASSoft << std::endl;
+    wcout << L"DefaultLimitNPROC=" << g_pool->globals.DefaultLimitNPROC << std::endl;
+    wcout << L"DefaultLimitNPROCSoft=" << g_pool->globals.DefaultLimitNPROCSoft << std::endl;
+    wcout << L"DefaultLimitMEMLOCK=" << g_pool->globals.DefaultLimitMEMLOCK << std::endl;
+    wcout << L"DefaultLimitMEMLOCKSoft=" << g_pool->globals.DefaultLimitMEMLOCKSoft << std::endl;
+    wcout << L"DefaultLimitLOCKS=" << g_pool->globals.DefaultLimitLOCKS << std::endl;
+    wcout << L"DefaultLimitLOCKSSoft=" << g_pool->globals.DefaultLimitLOCKSSoft << std::endl;
+    wcout << L"DefaultLimitSIGPENDING=" << g_pool->globals.DefaultLimitSIGPENDING << std::endl;
+    wcout << L"DefaultLimitSIGPENDINGSoft=" << g_pool->globals.DefaultLimitSIGPENDINGSoft << std::endl;
+    wcout << L"DefaultLimitMSGQUEUE=" << g_pool->globals.DefaultLimitMSGQUEUE << std::endl;
+    wcout << L"DefaultLimitMSGQUEUESoft=" << g_pool->globals.DefaultLimitMSGQUEUESoft << std::endl;
+    wcout << L"DefaultLimitNICE=" << g_pool->globals.DefaultLimitNICE << std::endl;
+    wcout << L"DefaultLimitNICESoft=" << g_pool->globals.DefaultLimitNICESoft << std::endl;
+    wcout << L"DefaultLimitRTPRIO=" << g_pool->globals.DefaultLimitRTPRIO << std::endl;
+    wcout << L"DefaultLimitRTPRIOSoft=" << g_pool->globals.DefaultLimitRTPRIOSoft << std::endl;
+    wcout << L"DefaultLimitRTTIME=" << g_pool->globals.DefaultLimitRTTIME << std::endl;
+    wcout << L"DefaultLimitRTTIMESoft=" << g_pool->globals.DefaultLimitRTTIMESoft << std::endl;
+    wcout << L"DefaultTasksMax=" << g_pool->globals.DefaultTasksMax << std::endl;
+    wcout << L"TimerSlackNSec=" << g_pool->globals.TimerSlackNSec << std::endl;
+}
 
 
 boolean
@@ -1719,8 +2133,26 @@ boolean
 SystemDUnit::attr_restart( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
-    attr_bitmask |= ATTRIBUTE_BIT_RESTART;
+    static std::map <std::wstring, enum RestartAction> restart_action_translate = {
+              { L"undefined",   RESTART_ACTION_UNDEFINED },
+              { L"no",          RESTART_ACTION_NO },
+              { L"always",      RESTART_ACTION_ALWAYS},
+              { L"on_success",  RESTART_ACTION_ON_SUCCESS },
+              { L"on_failure",  RESTART_ACTION_ON_FAILURE },
+              { L"on_abnormal", RESTART_ACTION_ON_ABNORMAL },
+              { L"on_abort",    RESTART_ACTION_ON_ABORT },
+              { L"on_watchdog", RESTART_ACTION_ON_WATCHDOG }
+         };
+
+    wcout << L"Restart=" << L" value = " << attr_value.c_str() << endl;
+    try {
+        this->restart_action = restart_action_translate[attr_value];
+        attr_bitmask |= ATTRIBUTE_BIT_RESTART;
+    }
+    catch (...) {
+        wcerr << L"Restart=" << L" value = " << attr_value.c_str() << " invalid" << endl;
+        return false;
+    }
     return true;
 }
 

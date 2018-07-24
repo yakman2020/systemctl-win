@@ -15,6 +15,7 @@
 #include <map>
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 
 using namespace std;
 
@@ -45,6 +46,7 @@ public:
 
     void LoadPool();
     void SavePool() { };
+    void ShowGlobal();
 
    static wstring UNIT_DIRECTORY_PATH;        // Quasi constant inited in contructor
    static wstring SERVICE_WRAPPER_PATH; // Single instance for everybody
@@ -56,6 +58,92 @@ private:
    static wstring ACTIVE_UNIT_DIRECTORY_PATH; // Quasi constant
    static wstring UNIT_WORKING_DIRECTORY_PATH; // Quasi constant
    static std::map<std::wstring, class SystemDUnit *> pool;
+
+   struct GlobalAttrs {
+        std::wstring Version ;
+        std::wstring Features;
+        std::wstring Virtualization;
+        std::wstring Architecture;
+        __time64_t FirmwareTimestampMonotonic;
+        __time64_t LoaderTimestampMonotonic;
+        __time64_t KernelTimestampMonotonic;
+        __time64_t InitRDTimestampMonotonic;
+        __time64_t UserspaceTimestampMonotonic;
+        __time64_t FinishTimestampMonotonic;
+        __time64_t SecurityStartTimestampMonotonic;
+        __time64_t SecurityFinishTimestampMonotonic;
+        __time64_t GeneratorsStartTimestampMonotonic;
+        __time64_t GeneratorsFinishTimestampMonotonic;
+        __time64_t UnitsLoadStartTimestampMonotonic;
+        __time64_t UnitsLoadFinishTimestampMonotonic;
+        std::wstring LogLevel;
+        std::wstring LogTarget;
+        int NNames;
+        int NFailedUnits;
+        int NJobs;
+        int NInstalledJobs;
+        int NFailedJobs;
+        int Progress;
+        std::wstring Environment;
+        bool ConfirmSpawn;
+        bool ShowStatus;
+        std::wstring UnitPath;
+        std::wstring DefaultStandardOutput;
+        std::wstring DefaultStandardError;
+        std::chrono::duration<__int64, std::micro> RuntimeWatchdogUSec;
+        std::chrono::duration<__int64, std::micro> ShutdownWatchdogUSec;
+        bool ServiceWatchdogs;
+        std::wstring SystemState;
+        std::chrono::duration<__int64, std::micro> DefaultTimerAccuracyUSec;
+        std::chrono::duration<__int64, std::micro> DefaultTimeoutStartUSec;
+        std::chrono::duration<__int64, std::micro> DefaultTimeoutStopUSec;
+        std::chrono::duration<__int64, std::micro> DefaultRestartUSec;
+        std::chrono::duration<__int64, std::micro> DefaultStartLimitIntervalUSec;
+        int  DefaultStartLimitBurst;
+        bool DefaultCPUAccounting;
+        bool DefaultBlockIOAccounting;
+        bool DefaultMemoryAccounting;
+        int DefaultTasksAccounting;
+        int DefaultLimitCPU;
+        int DefaultLimitCPUSoft;
+        int DefaultLimitFSIZE;
+        int DefaultLimitFSIZESoft;
+        int DefaultLimitDATA;
+        int DefaultLimitDATASoft;
+        int DefaultLimitSTACK;
+        int DefaultLimitSTACKSoft;
+        int DefaultLimitCORE;
+        int DefaultLimitCORESoft;
+        int DefaultLimitRSS;
+        int DefaultLimitRSSSoft;
+        int DefaultLimitNOFILE;
+        int DefaultLimitNOFILESoft;
+        int DefaultLimitAS;
+        int DefaultLimitASSoft;
+        int DefaultLimitNPROC;
+        int DefaultLimitNPROCSoft;
+        int DefaultLimitMEMLOCK;
+        int DefaultLimitMEMLOCKSoft;
+        int DefaultLimitLOCKS;
+        int DefaultLimitLOCKSSoft;
+        int DefaultLimitSIGPENDING;
+        int DefaultLimitSIGPENDINGSoft;
+        int DefaultLimitMSGQUEUE;
+        int DefaultLimitMSGQUEUESoft;
+        int DefaultLimitNICE;
+        int DefaultLimitNICESoft;
+        int DefaultLimitRTPRIO;
+        int DefaultLimitRTPRIOSoft;
+        int DefaultLimitRTTIME;
+        int DefaultLimitRTTIMESoft;
+        int DefaultTasksMax;
+        int TimerSlackNSec;
+   };
+   
+   struct GlobalAttrs globals;
+
+
+
 };
 
 
@@ -130,6 +218,24 @@ public:
        OUTPUT_TYPE_FD      // requires a name
     };
 
+    enum RestartAction {
+       RESTART_ACTION_UNDEFINED,
+       RESTART_ACTION_NO,
+       RESTART_ACTION_ALWAYS,
+       RESTART_ACTION_ON_SUCCESS,
+       RESTART_ACTION_ON_FAILURE,
+       RESTART_ACTION_ON_ABNORMAL,
+       RESTART_ACTION_ON_ABORT,
+       RESTART_ACTION_ON_WATCHDOG
+    };
+
+    enum NotifyAction {
+        NOTIFY_ACTION_NONE,
+        NOTIFY_ACTION_MAIN,
+        NOTIFY_ACTION_EXEC,
+        NOTIFY_ACTION_ALL
+    };
+
     SystemDUnit(const wchar_t *name, const wchar_t *file_path = NULL) {
             this->name = name;
             if (file_path) {
@@ -161,6 +267,43 @@ public:
             this->remain_after_exit = false;
             g_pool->GetPool().insert(std::make_pair(name, this));
             this->m_retry = 0;
+
+	    this->service_type   = SERVICE_TYPE_SIMPLE;
+	    this->restart_action = RESTART_ACTION_ALWAYS;
+	    this->notify_access  = NOTIFY_ACTION_NONE;
+	    this->restart_sec     = g_pool->globals.DefaultRestartUSec.count()/1000000.0;
+            this->limitCPU        = g_pool->globals.DefaultLimitCPU;
+            this->limitCPUSoft    = g_pool->globals.DefaultLimitCPUSoft;
+            this->limitFSIZE      = g_pool->globals.DefaultLimitFSIZE;
+            this->limitFSIZESoft  = g_pool->globals.DefaultLimitFSIZESoft;
+            this->limitDATA       = g_pool->globals.DefaultLimitDATA;
+            this->limitDATASoft   = g_pool->globals.DefaultLimitDATASoft;
+            this->limitSTACK      = g_pool->globals.DefaultLimitSTACK;
+            this->limitSTACKSoft  = g_pool->globals.DefaultLimitSTACKSoft;
+            this->limitCORE       = g_pool->globals.DefaultLimitCORE;
+            this->limitCORESoft   = g_pool->globals.DefaultLimitCORESoft;
+            this->limitRSS        = g_pool->globals.DefaultLimitRSS;
+            this->limitRSSSoft    = g_pool->globals.DefaultLimitRSSSoft;
+            this->limitNOFILE     = g_pool->globals.DefaultLimitNOFILE;
+            this->limitNOFILESoft = g_pool->globals.DefaultLimitNOFILESoft;
+            this->limitAS         = g_pool->globals.DefaultLimitAS;
+            this->limitASSoft     = g_pool->globals.DefaultLimitASSoft;
+            this->limitNPROC      = g_pool->globals.DefaultLimitNPROC;
+            this->limitNPROCSoft  = g_pool->globals.DefaultLimitNPROCSoft;
+            this->limitMEMLOCK    = g_pool->globals.DefaultLimitMEMLOCK;
+            this->limitMEMLOCKSoft = g_pool->globals.DefaultLimitMEMLOCKSoft;
+            this->limitLOCKS      = g_pool->globals.DefaultLimitLOCKS;
+            this->limitLOCKSSoft  = g_pool->globals.DefaultLimitLOCKSSoft;
+            this->limitSIGPENDING = g_pool->globals.DefaultLimitSIGPENDING;
+            this->limitSIGPENDINGSoft = g_pool->globals.DefaultLimitSIGPENDINGSoft;
+            this->limitMSGQUEUE   = g_pool->globals.DefaultLimitMSGQUEUE;
+            this->limitMSGQUEUESoft = g_pool->globals.DefaultLimitMSGQUEUESoft;
+            this->limitNICE       = g_pool->globals.DefaultLimitNICE;
+            this->limitNICESoft   = g_pool->globals.DefaultLimitNICESoft;
+            this->limitRTPRIO     = g_pool->globals.DefaultLimitRTPRIO;
+            this->limitRTPRIOSoft = g_pool->globals.DefaultLimitRTPRIOSoft;
+            this->limitRTTIME     = g_pool->globals.DefaultLimitRTTIME;
+            this->limitRTTIMESoft = g_pool->globals.DefaultLimitRTTIMESoft;
         };
     ~SystemDUnit() {  };
 
@@ -263,6 +406,7 @@ public:
     boolean StopService(boolean blocking);
     boolean ReloadService(boolean blocking);
     boolean RestartService(boolean blocking);
+    void ShowService();
 
     boolean RegisterService();
     boolean UnregisterService();
@@ -300,6 +444,8 @@ private:
     double watchdog_sec;
     double max_runtime_sec;
 
+    enum NotifyAction notify_access;
+
     vector<wstring> before;   // Kept in order of definition
     vector<wstring> after;    // Kept in order of definition
     vector<wstring> wants;    // Kept in order of definition
@@ -323,6 +469,39 @@ private:
 
     vector<class SystemDUnit *> start_dependencies; // Requires 
     vector<class SystemDUnit *> wait_dependencies;  // After
+
+    int limitCPU;
+    int limitCPUSoft;
+    int limitFSIZE;
+    int limitFSIZESoft;
+    int limitDATA;
+    int limitDATASoft;
+    int limitSTACK;
+    int limitSTACKSoft;
+    int limitCORE;
+    int limitCORESoft;
+    int limitRSS;
+    int limitRSSSoft;
+    int limitNOFILE;
+    int limitNOFILESoft;
+    int limitAS;
+    int limitASSoft;
+    int limitNPROC;
+    int limitNPROCSoft;
+    int limitMEMLOCK;
+    int limitMEMLOCKSoft;
+    int limitLOCKS;
+    int limitLOCKSSoft;
+    int limitSIGPENDING;
+    int limitSIGPENDINGSoft;
+    int limitMSGQUEUE;
+    int limitMSGQUEUESoft;
+    int limitNICE;
+    int limitNICESoft;
+    int limitRTPRIO;
+    int limitRTPRIOSoft;
+    int limitRTTIME;
+    int limitRTTIMESoft;
 
     static wstring SERVICE_WRAPPER; // Single instance
 
