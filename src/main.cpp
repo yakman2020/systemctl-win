@@ -261,13 +261,67 @@ int SystemCtrl_Cmd_Kill( boost::program_options::variables_map &vm )
 
 int SystemCtrl_Cmd_Is_Active( boost::program_options::variables_map &vm )
 {
-    return -1;
+    if (vm["system_units"].empty()) {
+        // Complain and exit
+        wcerr << "No unit specified\n";
+        exit(1);
+    }
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    if (units.size() > 1) {
+        wcerr << "One unit only\n";
+        exit(2);
+    }
+
+    for (wstring unitname: units) {
+        SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
+        if (!unit) {
+                // Complain and exit
+                wcerr << "Failed to get unit file state for " << unitname.c_str() << ": No such file or directory\n";
+                exit(1);
+        }
+        if (unit->IsActive() ) {
+            wcout << L"active";
+            exit(0);
+        }
+        else {
+            wcout << L"false";
+            exit(1);
+        }
+    }
+    return 0;
 }
 
 
 int SystemCtrl_Cmd_Is_Failed( boost::program_options::variables_map &vm )
 {
-    return -1;
+    if (vm["system_units"].empty()) {
+        // Complain and exit
+        wcerr << "No unit specified\n";
+        exit(1);
+    }
+    vector<wstring> units = vm["system_units"].as<vector<wstring>>();
+    if (units.size() > 1) {
+        wcerr << "One unit only\n";
+        exit(2);
+    }
+
+    for (wstring unitname: units) {
+        SystemDUnit *unit = SystemDUnitPool::FindUnit(unitname);
+        if (!unit) {
+                // Complain and exit
+                wcerr << "Failed to get unit file state for " << unitname.c_str() << ": No such file or directory\n";
+                exit(1);
+        }
+        if (unit->IsFailed() ) {
+            wcout << L"failed";
+            exit(0);
+        }
+        else {
+            wcout << L"false";
+            exit(1);
+        }
+    }
+    return 0;
 }
 
 

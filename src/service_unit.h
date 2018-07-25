@@ -313,6 +313,9 @@ public:
     boolean Unmask(boolean block);
 
     boolean IsEnabled() ;
+    boolean IsActive() ;
+    boolean IsFailed() ;
+
     wstring  &Name()  { return name; };
     wstring  &FilePath()  { return unit_file_path; };
     wstring  &FilePath(wstring &file_path)  {

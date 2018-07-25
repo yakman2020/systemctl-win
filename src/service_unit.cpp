@@ -334,14 +334,14 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
    
     for (auto i = 0; i < attrs.size(); i++) {
         if (attrs[i].compare(L"Description") == 0) {
-            wcout << L"Description = " << values[i].c_str() << endl;
+            wcerr << L"Description = " << values[i].c_str() << endl;
             this->description = values[i].c_str(); 
         }
         else if (attrs[i].compare(L"Documentation") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"Requires") == 0) {
-            wcout << "Requires " << values[i].c_str() << endl;
+            wcerr << "Requires " << values[i].c_str() << endl;
 
             wstring value_list = values[i]; 
             int end = 0;
@@ -351,7 +351,7 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
             }
         }
         else if (attrs[i].compare(L"Requisite") == 0) {
-            wcout << "Requisite " << values[i].c_str() << endl;
+            wcerr << "Requisite " << values[i].c_str() << endl;
 
             wstring value_list = values[i];
             int end = 0;
@@ -361,7 +361,7 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
             }
         }
         else if (attrs[i].compare(L"Wants") == 0) {
-            wcout << "Wants " << values[i].c_str() << endl;
+            wcerr << "Wants " << values[i].c_str() << endl;
 
             wstring value_list = values[i];
             int end = 0;
@@ -371,13 +371,13 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
             }
         }
         else if (attrs[i].compare(L"BindsTo") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"PartOf") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"Conflicts") == 0) {
-            wcout << "Conflicts " << values[i].c_str() << endl;
+            wcerr << "Conflicts " << values[i].c_str() << endl;
 
             wstring value_list = values[i];
             int end = 0;
@@ -387,7 +387,7 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
             }
         }
         else if (attrs[i].compare(L"Before") == 0) {
-            wcout << "Before " << values[i].c_str() << endl;
+            wcerr << "Before " << values[i].c_str() << endl;
 
             wstring value_list = values[i];
             int end = 0;
@@ -397,7 +397,7 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
             }
         }
         else if (attrs[i].compare(L"After") == 0) {
-            wcout << "After " << values[i].c_str() << endl;
+            wcerr << "After " << values[i].c_str() << endl;
 
             wstring value_list = values[i];
             int end = 0;
@@ -407,196 +407,196 @@ wstring SystemDUnit::ParseUnitSection( wifstream &fs)
             }
         }
         else if (attrs[i].compare(L"OnFailure") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"PropagatesReloadTo") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ReloadPropagatedFrom") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"JoinsNamespaceOf") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"RequiresMountsFor") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"OnFailureJobMode") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"IgnoreOnIsolate") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"StopWhenUnneeded") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"RefuseManualStart") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"RefuseManualStop") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AllowIsolate") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"DefaultDependencies") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"CollectMode") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"JobTimeoutSec") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"JobRunningTimeoutSec") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"JobTimeoutAction") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"JobTimeoutRebootArgument") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"FailureAction") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"SuccessAction") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"RebootArgument") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionArchitecture") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionVirtualization") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionHost") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionKernelCommandLine") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionKernelVersion") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionSecurity") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionCapability") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionACPower") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionNeedsUpdate") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionFirstBoot") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionPathExists") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionPathExistsGlob") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionPathIsDirectory") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionPathIsSymbolicLink") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionPathIsMountPoint") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionPathIsReadWrite") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionDirectoryNotEmpty") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionFileNotEmpty") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionFileIsExecutable") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionUser") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionGroup") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"ConditionControlGroupController") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertArchitecture") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertVirtualization") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertHost") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertKernelCommandLine") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertKernelVersion") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertSecurity") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertCapability") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertACPower") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertNeedsUpdate") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertFirstBoot") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertPathExists") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertPathExistsGlob") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertPathIsDirectory") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertPathIsSymbolicLink") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertPathIsMountPoint") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertPathIsReadWrite") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertDirectoryNotEmpty") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertFileNotEmpty") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertFileIsExecutable") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertUser") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertGroup") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"AssertControlGroupController") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else {
             wcerr << "attribute not recognised: " << attrs[i].c_str() << endl;
@@ -670,10 +670,10 @@ wstring SystemDUnit::ParseInstallSection( wifstream &fs)
     wstring retval = split_elems(fs, attrs, values);
     for (auto i = 0; i < attrs.size(); i++) {
         if (attrs[i].compare(L"Alias") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"WantedBy") == 0) {
-            wcout << "WantedBy " << values[i].c_str() << endl;
+            wcerr << "WantedBy " << values[i].c_str() << endl;
 
             wstring value_list = values[i];
             int end = 0;
@@ -688,7 +688,7 @@ wstring SystemDUnit::ParseInstallSection( wifstream &fs)
             }
         }
         else if (attrs[i].compare(L"RequiredBy") == 0) {
-            wcout << "RequiredBy " << values[i].c_str() << endl;
+            wcerr << "RequiredBy " << values[i].c_str() << endl;
 
             wstring value_list = values[i];
             int end = 0;
@@ -703,10 +703,10 @@ wstring SystemDUnit::ParseInstallSection( wifstream &fs)
             }
         }
         else if (attrs[i].compare(L"Also") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else if (attrs[i].compare(L"DefaultInstance") == 0) {
-            wcout << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
+            wcerr << "2do: attrs = " << attrs[i].c_str() << " value = " << values[i].c_str() << endl;
         }
         else {
             wcerr << "attribute not recognised: " << attrs[i].c_str() << endl;
@@ -2041,7 +2041,7 @@ boolean
 SystemDUnit::attr_timeout_stop_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << "Timeout Stop Sec" << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << "Timeout Stop Sec" << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_TIMEOUT_STOP_SEC;
     if (attr_value.compare(L"infinity") == 0 ) {
         this->timeout_stop_sec = DBL_MAX;
@@ -2064,7 +2064,7 @@ boolean
 SystemDUnit::attr_timeout_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= (ATTRIBUTE_BIT_TIMEOUT_START_SEC | ATTRIBUTE_BIT_TIMEOUT_STOP_SEC);
     if (attr_value.compare(L"infinity") == 0 ) {
         this->timeout_start_sec = DBL_MAX;
@@ -2089,7 +2089,7 @@ boolean
 SystemDUnit::attr_runtime_max_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_RUNTIME_MAX_SEC;
     if (attr_value.compare(L"infinity") == 0) {
         this->max_runtime_sec = DBL_MAX;
@@ -2111,7 +2111,7 @@ boolean
 SystemDUnit::attr_watchdog_sec( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_WATCHDOG_SEC;
     if (attr_value.compare(L"infinity") == 0 ) {
         this->watchdog_sec = DBL_MAX;
@@ -2144,7 +2144,7 @@ SystemDUnit::attr_restart( wstring attr_name, wstring attr_value, unsigned long 
               { L"on_watchdog", RESTART_ACTION_ON_WATCHDOG }
          };
 
-    wcout << L"Restart=" << L" value = " << attr_value.c_str() << endl;
+    wcerr << L"Restart=" << L" value = " << attr_value.c_str() << endl;
     try {
         this->restart_action = restart_action_translate[attr_value];
         attr_bitmask |= ATTRIBUTE_BIT_RESTART;
@@ -2161,7 +2161,7 @@ boolean
 SystemDUnit::attr_success_exit_status( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_SUCCESS_EXIT_STATUS;
     return true;
 }
@@ -2171,7 +2171,7 @@ boolean
 SystemDUnit::attr_restart_prevent_exit_status( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_RESTART_PREVENT_EXIT_STATUS;
     return true;
 }
@@ -2181,7 +2181,7 @@ boolean
 SystemDUnit::attr_restart_force_exit_status( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_RESTART_FORCE_EXIT_STATUS;
     return true;
 }
@@ -2191,7 +2191,7 @@ boolean
 SystemDUnit::attr_permissions_start_only( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_PERMISSIONS_START_ONLY;
     return true;
 }
@@ -2201,7 +2201,7 @@ boolean
 SystemDUnit::attr_root_directory_start_only( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_ROOT_DIRECTORY_START_ONLY;
     return true;
 }
@@ -2211,7 +2211,7 @@ boolean
 SystemDUnit::attr_non_blocking( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_NON_BLOCKING;
     return true;
 }
@@ -2221,7 +2221,7 @@ boolean
 SystemDUnit::attr_notify_access( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_NOTIFY_ACCESS;
     return true;
 }
@@ -2231,7 +2231,7 @@ boolean
 SystemDUnit::attr_sockets( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_SOCKETS;
     return true;
 }
@@ -2241,7 +2241,7 @@ boolean
 SystemDUnit::attr_file_descriptor_store_max( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_FILE_DESCRIPTOR_STORE_MAX;
     return true;
 }
@@ -2251,7 +2251,7 @@ boolean
 SystemDUnit::attr_usb_function_descriptors( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_USB_FUNCTION_DESCRIPTORS;
     return true;
 }
@@ -2261,7 +2261,7 @@ boolean
 SystemDUnit::attr_usb_function_strings( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     attr_bitmask |= ATTRIBUTE_BIT_USB_FUNCTION_STRINGS;
     return true;
 }
@@ -2271,7 +2271,7 @@ boolean
 SystemDUnit::attr_environment( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "Environment " << attr_value.c_str() << endl;
+    wcerr << "Environment " << attr_value.c_str() << endl;
 
     wstring value_list = attr_value;
     int end = 0;
@@ -2292,7 +2292,7 @@ boolean
 SystemDUnit::attr_environment_file( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "EnvironmentFile= " << attr_value.c_str() << endl;
+    wcerr << "EnvironmentFile= " << attr_value.c_str() << endl;
     this->environment_file.push_back(attr_value.c_str());
     return true;
 }
@@ -2302,7 +2302,7 @@ boolean
 SystemDUnit::attr_standard_output( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "StandardOutput = " << attr_value.c_str() << endl;
+    wcerr << "StandardOutput = " << attr_value.c_str() << endl;
     enum OUTPUT_TYPE out_type = String_To_OutputType(attr_value.c_str());
     switch (out_type) {
     default:
@@ -2337,7 +2337,7 @@ boolean
 SystemDUnit::attr_standard_error( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "StandardError = " << attr_value.c_str() << endl;
+    wcerr << "StandardError = " << attr_value.c_str() << endl;
     enum OUTPUT_TYPE out_type = String_To_OutputType(attr_value.c_str());
     switch (out_type) {
     default:
@@ -2372,7 +2372,7 @@ boolean
 SystemDUnit::attr_not_implemented( wstring attr_name, wstring attr_value, unsigned long &attr_bitmask )
 
 {
-    wcout << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
+    wcerr << "2do: attrs = " << attr_name.c_str() << " value = " << attr_value.c_str() << endl;
     return true;
 }
 

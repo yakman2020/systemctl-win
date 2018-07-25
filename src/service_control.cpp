@@ -129,7 +129,7 @@ SystemDUnit::AddUserServiceLogonPrivilege()
 
     GetUserCreds(username, password);
  
-    wcerr << L"username = " << username << " password = " << password << std::endl;
+    // wcerr << L"username = " << username << " password = " << password << std::endl;
 
     // Get the sid
     SID *psid;
@@ -351,6 +351,98 @@ boolean SystemDUnit::IsEnabled()
 
 
 
+boolean SystemDUnit::IsActive()
+{
+    SC_HANDLE hsc = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    if (!hsc) {
+        int last_error = GetLastError();
+        wcerr << "failed to open service manager, err = " << last_error << std::endl;
+        return false;
+    }
+
+    SC_HANDLE hsvc = OpenServiceW(hsc, this->name.c_str(), SERVICE_QUERY_STATUS);
+    if (!hsvc)
+    {   DWORD last_err = GetLastError();
+
+        if (last_err == ERROR_SERVICE_DOES_NOT_EXIST ||
+            last_err == ERROR_SERVICE_DISABLED ) {
+            wcerr << L"service " << this->name << " is not enabled " << std::endl;
+        }
+        else {
+            wcerr << L" In IsEnabled error from OpenService " << last_err << std::endl;
+        }
+        CloseServiceHandle(hsc);
+        return false;
+    }
+    
+    SERVICE_STATUS svc_stat = {0};
+
+    for (int retries = 0; retries < 5; retries++ ) {
+        if (QueryServiceStatus(hsvc, &svc_stat)) {
+            wcerr << L"IsActive::QueryServiceStatus succeed" << std::endl; 
+            break;
+        }
+        wcerr << L"QueryServiceStatus failed " << GetLastError() << std::endl; 
+    }
+
+    if (svc_stat.dwCurrentState == SERVICE_RUNNING) {
+        return true;
+    }
+
+    CloseServiceHandle(hsvc); 
+    CloseServiceHandle(hsc);
+    return false;
+}
+
+
+
+boolean SystemDUnit::IsFailed()
+{
+    SC_HANDLE hsc = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    if (!hsc) {
+        int last_error = GetLastError();
+        wcerr << "failed to open service manager, err = " << last_error << std::endl;
+        return false;
+    }
+
+    SC_HANDLE hsvc = OpenServiceW(hsc, this->name.c_str(), SERVICE_QUERY_STATUS);
+    if (!hsvc)
+    {   DWORD last_err = GetLastError();
+
+        if (last_err == ERROR_SERVICE_DOES_NOT_EXIST ||
+            last_err == ERROR_SERVICE_DISABLED ) {
+            wcerr << L"service " << this->name << " is not enabled " << std::endl;
+        }
+        else {
+            wcerr << L" In IsEnabled error from OpenService " << last_err << std::endl;
+        }
+        CloseServiceHandle(hsc);
+        return false;
+    }
+    
+    SERVICE_STATUS svc_stat = {0};
+
+    for (int retries = 0; retries < 5; retries++ ) {
+        if (QueryServiceStatus(hsvc, &svc_stat)) {
+            wcerr << L"IsActive::QueryServiceStatus succeed" << std::endl; 
+            break;
+        }
+        wcerr << L"QueryServiceStatus failed " << GetLastError() << std::endl; 
+    }
+
+    if (svc_stat.dwCurrentState == SERVICE_STOPPED) {
+        if (svc_stat.dwWin32ExitCode != 0) {
+            return true;
+	}
+    }
+
+    CloseServiceHandle(hsvc); 
+    CloseServiceHandle(hsc);
+    return false;
+}
+
+
+
 boolean 
 SystemDUnit::RegisterService()
 
@@ -401,8 +493,8 @@ wcerr << "dep buffer chars required: " << wchar_needed << std::endl;
     wchar_t *bufp = dep_buffer.data();
     for (auto dependent : this->start_dependencies) {
         memcpy(bufp, dependent->name.c_str(), dependent->name.size()*sizeof(wchar_t));
-    bufp += dependent->name.size();
-    *bufp++ = L'\0';
+        bufp += dependent->name.size();
+        *bufp++ = L'\0';
     }
     *bufp++ = L'\0';
 
@@ -430,31 +522,31 @@ wcerr << "end of dep list" << std::endl;
         return false;
     }
 
-    SC_HANDLE hsvc = CreateServiceW( 
-        hsc,                       // SCM database 
-        wservice_name.c_str(),             // name of service 
-        wservice_display_name.c_str(),     // service name to display 
-        SERVICE_ALL_ACCESS,        // desired access 
-        SERVICE_WIN32_OWN_PROCESS, // service type 
-        SERVICE_AUTO_START,      // start type 
-        SERVICE_ERROR_NORMAL,      // error control type 
-        wcmdline.str().c_str(),    // path to service's binary 
-        NULL,                      // no load ordering group 
-        NULL,                      // no tag identifier 
-        dep_buffer.data(),  // dependencies 
-        username.c_str(), //pcred? username.c_str(): NULL,  // LocalSystem account 
-        user_password.c_str()); // pcred ? user_password.c_str() : NULL);   // no password 
+        SC_HANDLE hsvc = CreateServiceW( 
+            hsc,                       // SCM database 
+            wservice_name.c_str(),             // name of service 
+            wservice_display_name.c_str(),     // service name to display 
+            SERVICE_ALL_ACCESS,        // desired access 
+            SERVICE_WIN32_OWN_PROCESS, // service type 
+            SERVICE_AUTO_START,      // start type 
+            SERVICE_ERROR_NORMAL,      // error control type 
+            wcmdline.str().c_str(),    // path to service's binary 
+            NULL,                      // no load ordering group 
+            NULL,                      // no tag identifier 
+            dep_buffer.data(),  // dependencies 
+            username.c_str(), //pcred? username.c_str(): NULL,  // LocalSystem account 
+            user_password.c_str()); // pcred ? user_password.c_str() : NULL);   // no password 
  
-    if (hsvc == NULL) 
-    {
-        wcerr << L"CreateService failed " << GetLastError() << std::endl; 
-        CloseServiceHandle(hsc);
-        return false;
-    }
+        if (hsvc == NULL) 
+        {
+            wcerr << L"CreateService failed " << GetLastError() << std::endl; 
+            CloseServiceHandle(hsc);
+            return false;
+        }
     
-    // We query the status to ensure that the service has actually been created.
+        // We query the status to ensure that the service has actually been created.
 
-    SERVICE_STATUS svc_stat = {0};
+        SERVICE_STATUS svc_stat = {0};
 
         for (int retries = 0; retries < 5; retries++ ) {
             if (QueryServiceStatus(hsvc, &svc_stat)) {
